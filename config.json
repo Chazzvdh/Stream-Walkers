@@ -1,0 +1,12 @@
+{
+  "channelName": "ohnepixel",
+  "avatarColor": "#ffffff",
+  "walkingSpeed": 1,
+  "useTwitchColor": true,
+  "enableJumping": true,
+  "jumpVelocity": 12,
+  "gravity": 1,
+  "jumpChance": 1,
+  "enableMessageDisplay": true,
+  "messageChance": 100
+}

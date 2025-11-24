@@ -2,50 +2,45 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const tmi = require('tmi.js');
+const fs = require('fs');
+const bodyParser = require('body-parser');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const PORT = 3000;
 
-// Serve the frontend files from the 'public' directory
 app.use(express.static('public'));
+app.use(bodyParser.json());
 
-// ------------------------------------------------------------------
-// 1. TMI.JS (Twitch Chat) Setup
-// ------------------------------------------------------------------
+let config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
-const twitchClient = new tmi.Client({
-    // IMPORTANT: Replace 'YOUR_TWITCH_CHANNEL' with your lowercase Twitch username
-    channels: ['donkaaklijn']
+let twitchClient = new tmi.Client({
+    channels: [config.channelName]
 });
 
-twitchClient.connect().then(() => {
-    console.log(`Successfully connected to Twitch chat for: ${twitchClient.opts.channels[0]}`);
-}).catch(err => {
-    console.error("Failed to connect to Twitch:", err);
-});
+function connectTwitchClient() {
+    twitchClient.connect().then(() => {
+        console.log(`Connected to Twitch chat for: ${twitchClient.opts.channels[0]}`);
+    }).catch(err => {
+        console.error("Failed to connect to Twitch:", err);
+    });
+}
 
-// Listener for all messages in the connected channel
+connectTwitchClient();
+
 twitchClient.on('message', (channel, tags, message, self) => {
-    // Ignore messages from the bot itself
     if (self) return;
-
     const username = tags['display-name'];
-
-    // Emit the new chatter's data to all connected web clients (the OBS browser source)
+    const twitchColor = tags['color'] || '#ff0000';
     io.emit('new-chatter', {
         username: username,
-        color: tags['color'] || '#FFFFFF', // Use user's color or default to white
-        // Include other properties like emotes, badges if needed later
+        color: twitchColor,
+        twitchColor: twitchColor,
+        message: message
     });
-
-    console.log(`Chat message from ${username}. Emitting event to OBS.`);
+    console.log(`Chat message from ${username} with color ${twitchColor}. Emitting event to OBS.`);
 });
-
-// ------------------------------------------------------------------
-// 2. SOCKET.IO (Real-time connection) Setup
-// ------------------------------------------------------------------
 
 io.on('connection', (socket) => {
     console.log('A client (OBS Browser Source) connected.');
@@ -54,7 +49,37 @@ io.on('connection', (socket) => {
     });
 });
 
-// Start the server
+// Watch config.json for channel changes
+fs.watchFile('config.json', (curr, prev) => {
+    const newConfig = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+    if (newConfig.channelName !== config.channelName) {
+        twitchClient.disconnect().then(() => {
+            twitchClient = new tmi.Client({
+                channels: [newConfig.channelName]
+            });
+            connectTwitchClient();
+            config = newConfig;
+        });
+    }
+    config = newConfig;
+});
+
+// Endpoint to get config
+app.get('/config', (req, res) => {
+    res.json(config);
+});
+
+// Endpoint to update config from browser
+app.post('/set-config', (req, res) => {
+    const newConfig = req.body;
+    if (typeof newConfig.channelName !== 'string' || !newConfig.channelName) {
+        return res.status(400).json({ success: false, error: 'Invalid channel name' });
+    }
+    config = newConfig;
+    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+    res.json({ success: true });
+});
+
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
