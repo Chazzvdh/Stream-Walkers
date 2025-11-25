@@ -92,16 +92,13 @@
 
 ---
 
-## License & Usage
+## License
 
-**© Copyright [Year] [Your Name]. All Rights Reserved.**
+This project is licensed under the **ISC License**.
 
-This project and its source code are **Proprietary**.
+Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 
-- **You MAY:** View this code for educational purposes or to evaluate the developer's portfolio.
-- **You MAY NOT:** Use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.
-
-Unauthorized copying of this file, via any medium, is strictly prohibited.
+See the `LICENSE` file for more details.
 
 ---
 
