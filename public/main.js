@@ -2,20 +2,13 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const socket = io();
 
-canvas.width = 1920;
-canvas.height = 1080;
-
 const avatars = [];
 const spriteImage = new Image();
 spriteImage.src = 'sprite.png';
 
-const FRAME_WIDTH = 32;
-const FRAME_HEIGHT = 50;
-const SCALE = 3;
-const DISPLAY_WIDTH = FRAME_WIDTH * SCALE;
-const DISPLAY_HEIGHT = FRAME_HEIGHT * SCALE;
-const DEFAULT_WALKING_SPEED = 1;
-const STAGGER_FRAMES = 8;
+const FRAME_WIDTH = 1000;
+const FRAME_HEIGHT = 1000;
+const STAGGER_FRAMES = 0;
 
 let userSettings = null;
 
@@ -25,27 +18,98 @@ async function loadConfig() {
     startApp();
 }
 
+let prevWidth = canvas.width;
+let prevHeight = canvas.height;
+
+function resizeCanvas() {
+    const newWidth = window.innerWidth;
+    const newHeight = window.innerHeight;
+
+    // Scale avatar positions
+    if (prevWidth && prevHeight) {
+        const scaleX = newWidth / prevWidth;
+        const scaleY = newHeight / prevHeight;
+        avatars.forEach(avatar => {
+            avatar.x *= scaleX;
+            avatar.y *= scaleY;
+            avatar.baseY *= scaleY;
+        });
+    }
+
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+    prevWidth = newWidth;
+    prevHeight = newHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
 function getUserSettings() {
     const jumpsPerMinute = parseFloat(userSettings.jumpChance) || 1;
     const jumpChance = jumpsPerMinute / 3600;
     return {
-        username: userSettings.username || 'Guest',
+        channelName: userSettings.channelName || 'default',
         color: userSettings.avatarColor || '#ff0000',
-        walkingSpeed: parseFloat(userSettings.walkingSpeed) || DEFAULT_WALKING_SPEED,
+        walkingSpeed: parseFloat(userSettings.walkingSpeed) || 1,
         useTwitchColor: !!userSettings.useTwitchColor,
         enableJumping: !!userSettings.enableJumping,
         jumpVelocity: parseFloat(userSettings.jumpVelocity) || 12,
         gravity: parseFloat(userSettings.gravity) || 1,
         jumpChance: jumpChance,
         enableMessageDisplay: !!userSettings.enableMessageDisplay,
-        messageChance: parseFloat(userSettings.messageChance) || 5
+        messageChance: parseFloat(userSettings.messageChance) || 5,
+        avatarSize: parseInt(userSettings.avatarSize, 10) || 64,
+        nameFontSize: parseInt(userSettings.nameFontSize, 10) || 20,
+        directionChangeChance: parseFloat(userSettings.directionChangeChance) || 1,
+        muteMessages: !!userSettings.muteMessages,
+        showShadows: userSettings.showShadows !== undefined ? !!userSettings.showShadows : true,
+        avatarOpacity: parseFloat(userSettings.avatarOpacity) || 1,
+        enableDespawn: !!userSettings.enableDespawn,
+        despawnTime: parseInt(userSettings.despawnTime, 10) || 60
     };
 }
 
+// --- Avatar persistence helpers ---
+function saveAvatars(channelName, avatars) {
+    const data = avatars.map(a => ({
+        username: a.username,
+        color: a.color,
+        x: a.x,
+        y: a.y,
+        baseY: a.baseY,
+        dx: a.dx,
+        spawnTime: a.spawnTime
+    }));
+    localStorage.setItem('avatars_' + channelName, JSON.stringify(data));
+    localStorage.setItem('avatars_channel', channelName);
+}
+
+function loadAvatars(channelName, settings) {
+    const saved = localStorage.getItem('avatars_' + channelName);
+    if (!saved) return [];
+    try {
+        const arr = JSON.parse(saved);
+        return arr.map(a => {
+            const avatar = new Avatar(a.username, a.color, settings.walkingSpeed, settings);
+            avatar.x = a.x;
+            avatar.y = a.y;
+            avatar.baseY = a.baseY;
+            avatar.dx = a.dx;
+            avatar.spawnTime = a.spawnTime || Date.now();
+            return avatar;
+        });
+    } catch {
+        return [];
+    }
+}
+// --- End Avatar persistence helpers ---
+
 class Avatar {
-    constructor(username, color, walkingSpeed = DEFAULT_WALKING_SPEED, settings = {}) {
-        this.x = Math.random() * (canvas.width - DISPLAY_WIDTH);
-        this.y = canvas.height - DISPLAY_HEIGHT - 10;
+    constructor(username, color, walkingSpeed = 1, settings = {}) {
+        this.settings = settings;
+        this.size = settings.avatarSize || 64;
+        this.x = Math.random() * (canvas.width - this.size);
+        this.y = canvas.height - this.size - 10;
         this.baseY = this.y;
         const randomSpeedFactor = Math.random() * 1 + 0.5;
         this.dx = (Math.random() < 0.5 ? 1 : -1) * walkingSpeed * randomSpeedFactor;
@@ -61,6 +125,12 @@ class Avatar {
         this.enableJumping = settings.enableJumping ?? true;
         this.userJumpVelocity = settings.jumpVelocity ?? 12;
         this.jumpChance = settings.jumpChance ?? 0.001;
+        this.directionChangeChance = (settings.directionChangeChance || 1) / 100;
+        this.showShadows = settings.showShadows !== undefined ? settings.showShadows : true;
+        this.avatarOpacity = settings.avatarOpacity !== undefined ? settings.avatarOpacity : 1;
+        this.nameFontSize = settings.nameFontSize || 20;
+        this.muteMessages = !!settings.muteMessages;
+        this.spawnTime = Date.now();
     }
 
     setMessage(msg) {
@@ -69,6 +139,10 @@ class Avatar {
     }
 
     update() {
+        // Randomly change direction
+        if (Math.random() < this.directionChangeChance / 60) {
+            this.dx *= -1;
+        }
         if (this.enableJumping && !this.isJumping && Math.random() < this.jumpChance) {
             this.isJumping = true;
             this.jumpVelocity = -this.userJumpVelocity - Math.random() * 4;
@@ -83,7 +157,7 @@ class Avatar {
             }
         }
         this.x += this.dx;
-        if (this.x < 0 || this.x + DISPLAY_WIDTH > canvas.width) {
+        if (this.x < 0 || this.x + this.size > canvas.width) {
             this.dx *= -1;
         }
         if (this.gameFrame % STAGGER_FRAMES === 0) {
@@ -100,46 +174,86 @@ class Avatar {
 
     draw() {
         ctx.save();
+        ctx.globalAlpha = this.avatarOpacity;
+
+        // Calculate shadow scale based on jump height
+        let jumpHeight = this.baseY - this.y;
+        let maxJump = this.userJumpVelocity * 1.5; // Estimate max jump height
+        let shadowScale = 1 - Math.min(jumpHeight / (maxJump * 2), 0.2); // Shrink up to 70%
+
+        // Draw shadow
+        if (this.showShadows) {
+            ctx.save();
+            ctx.globalAlpha = 0.1 * this.avatarOpacity;
+            ctx.beginPath();
+            ctx.ellipse(
+                this.x + this.size / 2,
+                this.baseY + this.size - 5,
+                (this.size / 2.2) * shadowScale,
+                (this.size / 7) * shadowScale,
+                0, 0, 2 * Math.PI
+            );
+            ctx.fillStyle = "#000";
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Draw avatar sprite
         if (this.dx < 0) {
             ctx.scale(-1, 1);
             ctx.drawImage(
                 spriteImage,
                 this.frameX * FRAME_WIDTH, 0, FRAME_WIDTH, FRAME_HEIGHT,
-                -this.x - DISPLAY_WIDTH, this.y, DISPLAY_WIDTH, DISPLAY_HEIGHT
+                -this.x - this.size, this.y, this.size, this.size
             );
         } else {
             ctx.drawImage(
                 spriteImage,
                 this.frameX * FRAME_WIDTH, 0, FRAME_WIDTH, FRAME_HEIGHT,
-                this.x, this.y, DISPLAY_WIDTH, DISPLAY_HEIGHT
+                this.x, this.y, this.size, this.size
             );
         }
         ctx.restore();
 
+        // Draw username
+        ctx.save();
         ctx.fillStyle = this.color;
-        ctx.font = `${10 * SCALE}px sans-serif`;
+        ctx.font = `${this.nameFontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 4;
-        ctx.strokeText(this.username, this.x + DISPLAY_WIDTH / 2, this.y - 10);
-        ctx.fillText(this.username, this.x + DISPLAY_WIDTH / 2, this.y - 10);
+        ctx.strokeText(this.username, this.x + this.size / 2, this.y - 10);
+        ctx.fillText(this.username, this.x + this.size / 2, this.y - 10);
+        ctx.restore();
 
-        // Draw message if present
-        if (this.message && this.messageTimer > 0) {
+        // Draw message if present and not muted
+        if (this.message && this.messageTimer > 0 && !this.muteMessages) {
             ctx.save();
-            ctx.font = `${8 * SCALE}px sans-serif`;
+            ctx.font = `${Math.round(this.nameFontSize * 0.8)}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 3;
-            ctx.strokeText(this.message, this.x + DISPLAY_WIDTH / 2, this.y - 50);
+            ctx.strokeText(this.message, this.x + this.size / 2, this.y - 50);
             ctx.fillStyle = '#fff';
-            ctx.fillText(this.message, this.x + DISPLAY_WIDTH / 2, this.y - 50);
+            ctx.fillText(this.message, this.x + this.size / 2, this.y - 50);
             ctx.restore();
         }
     }
 }
 
 function startApp() {
+    const settings = getUserSettings();
+
+    // --- Avatar persistence logic ---
+    const lastChannel = localStorage.getItem('avatars_channel');
+    if (lastChannel && lastChannel !== settings.channelName) {
+        localStorage.removeItem('avatars_' + lastChannel);
+    }
+    avatars.length = 0;
+    avatars.push(...loadAvatars(settings.channelName, settings));
+    localStorage.setItem('avatars_channel', settings.channelName);
+    // --- End avatar persistence logic ---
+
     socket.on('new-chatter', (data) => {
         const settings = getUserSettings();
         let color;
@@ -160,6 +274,7 @@ function startApp() {
         }
         if (
             settings.enableMessageDisplay &&
+            !settings.muteMessages &&
             Math.random() < (settings.messageChance / 100) &&
             data.message
         ) {
@@ -169,15 +284,34 @@ function startApp() {
 
     function animate() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const now = Date.now();
+        const settings = getUserSettings();
+
         for (let i = avatars.length - 1; i >= 0; i--) {
             const avatar = avatars[i];
+            // Despawn logic
+            if (
+                settings.enableDespawn &&
+                now - avatar.spawnTime > (settings.despawnTime * 1000)
+            ) {
+                avatars.splice(i, 1);
+                continue;
+            }
             avatar.update();
             avatar.draw();
         }
+
+        saveAvatars(settings.channelName, avatars);
+
         requestAnimationFrame(animate);
     }
 
-    spriteImage.onload = animate;
+    if (spriteImage.complete) {
+        animate();
+    } else {
+        spriteImage.onload = animate;
+    }
 }
 
 loadConfig();

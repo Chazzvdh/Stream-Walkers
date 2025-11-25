@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "nodemon --watch config.json server.js"
   },
   "keywords": [
     "obs",
@@ -20,5 +20,8 @@
     "express": "^5.1.0",
     "socket.io": "^4.8.1",
     "tmi.js": "^1.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
   }
 }

@@ -1,12 +1,20 @@
 {
-  "channelName": "ohnepixel",
+  "channelName": "pestily",
   "avatarColor": "#ffffff",
   "walkingSpeed": 1,
   "useTwitchColor": true,
   "enableJumping": true,
-  "jumpVelocity": 12,
-  "gravity": 1,
-  "jumpChance": 1,
+  "jumpVelocity": 10,
+  "gravity": 0.5,
+  "jumpChance": 5,
   "enableMessageDisplay": true,
-  "messageChance": 100
+  "messageChance": 100,
+  "avatarSize": 64,
+  "nameFontSize": 20,
+  "directionChangeChance": 10,
+  "muteMessages": false,
+  "showShadows": true,
+  "avatarOpacity": 1,
+  "enableDespawn": true,
+  "despawnTime": 10
 }
