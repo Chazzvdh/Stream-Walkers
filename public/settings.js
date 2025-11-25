@@ -72,6 +72,23 @@ function renderSpriteGallery() {
     });
 }
 
+// Delete All Sprites button logic
+const deleteAllBtn = document.getElementById('deleteAllSprites');
+if (deleteAllBtn) {
+    deleteAllBtn.addEventListener('click', () => {
+        if (!confirm('Are you sure you want to delete all sprites?')) return;
+        fetch('/delete-all-sprites', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    uploadedSprites = [];
+                    renderSpriteGallery();
+                    saveSpritesConfig();
+                }
+            });
+    });
+}
+
 function saveSpritesConfig() {
     fetch('/set-config', {
         method: 'POST',

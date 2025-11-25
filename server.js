@@ -111,6 +111,21 @@ app.post('/delete-sprite', (req, res) => {
     res.json({ success: true });
 });
 
+app.post('/delete-all-sprites', (req, res) => {
+    const spritesDir = path.join(__dirname, 'public', 'sprites');
+    fs.readdir(spritesDir, (err, files) => {
+        if (err) return res.json({ success: false });
+        let pending = files.length;
+        if (!pending) return res.json({ success: true });
+        files.forEach(file => {
+            fs.unlink(path.join(spritesDir, file), () => {
+                pending -= 1;
+                if (!pending) res.json({ success: true });
+            });
+        });
+    });
+});
+
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });

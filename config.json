@@ -19,11 +19,7 @@
   "despawnTime": 10,
   "sprites": [
     {
-      "url": "/sprites/sprite_1764080626100.png",
-      "frames": 8
-    },
-    {
-      "url": "/sprites/sprite_1764081570536.png",
+      "url": "/sprites/sprite_1764082168731.png",
       "frames": 5
     }
   ]
