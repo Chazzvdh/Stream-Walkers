@@ -4,6 +4,8 @@ const { Server } = require("socket.io");
 const tmi = require('tmi.js');
 const fs = require('fs');
 const bodyParser = require('body-parser');
+const multer = require('multer');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -11,7 +13,10 @@ const io = new Server(server);
 const PORT = 3000;
 
 app.use(express.static('public'));
+app.use('/sprites', express.static(path.join(__dirname, 'public/sprites')));
 app.use(bodyParser.json());
+
+const upload = multer({ dest: 'public/sprites/' });
 
 let config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 
@@ -78,6 +83,16 @@ app.post('/set-config', (req, res) => {
     config = newConfig;
     fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
     res.json({ success: true });
+});
+
+// Sprite upload endpoint
+app.post('/upload-sprite', upload.single('sprite'), (req, res) => {
+    if (!req.file) return res.status(400).json({ success: false });
+    const ext = req.file.originalname.split('.').pop();
+    const newName = `sprite_${Date.now()}.${ext}`;
+    const newPath = path.join('public/sprites', newName);
+    fs.renameSync(req.file.path, newPath);
+    res.json({ success: true, url: `/sprites/${newName}` });
 });
 
 server.listen(PORT, () => {

@@ -16,5 +16,7 @@
   "showShadows": true,
   "avatarOpacity": 1,
   "enableDespawn": true,
-  "despawnTime": 10
+  "despawnTime": 10,
+  "spriteUrl": "/sprites/sprite_1764077990029.png",
+  "spriteFrames": 8
 }

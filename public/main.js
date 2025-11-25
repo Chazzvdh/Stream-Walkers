@@ -3,19 +3,17 @@ const ctx = canvas.getContext('2d');
 const socket = io();
 
 const avatars = [];
-const spriteImage = new Image();
-spriteImage.src = 'sprite.png';
-
-const FRAME_WIDTH = 1000;
-const FRAME_HEIGHT = 1000;
-const STAGGER_FRAMES = 0;
+let spriteImage = new Image();
+let spriteFrames = 6; // default
 
 let userSettings = null;
 
 async function loadConfig() {
     const res = await fetch('/config');
     userSettings = await res.json();
-    startApp();
+    spriteImage.src = userSettings.spriteUrl || 'sprite.png';
+    spriteFrames = userSettings.spriteFrames || 6;
+    spriteImage.onload = startApp;
 }
 
 let prevWidth = canvas.width;
@@ -185,8 +183,8 @@ class Avatar {
         if (this.x < 0 || this.x + this.size > canvas.width) {
             this.dx *= -1;
         }
-        if (this.gameFrame % STAGGER_FRAMES === 0) {
-            this.frameX = (this.frameX + 1) % 3;
+        if (this.gameFrame % Math.max(1, Math.floor(60 / spriteFrames)) === 0) {
+            this.frameX = (this.frameX + 1) % spriteFrames;
         }
         if (this.messageTimer > 0) {
             this.messageTimer--;
@@ -223,18 +221,22 @@ class Avatar {
             ctx.restore();
         }
 
+        // Calculate frame width/height based on image and frame count
+        const frameWidth = spriteImage.width / spriteFrames;
+        const frameHeight = spriteImage.height;
+
         // Draw avatar sprite
         if (this.dx < 0) {
             ctx.scale(-1, 1);
             ctx.drawImage(
                 spriteImage,
-                this.frameX * FRAME_WIDTH, 0, FRAME_WIDTH, FRAME_HEIGHT,
+                this.frameX * frameWidth, 0, frameWidth, frameHeight,
                 -this.x - this.size, this.y, this.size, this.size
             );
         } else {
             ctx.drawImage(
                 spriteImage,
-                this.frameX * FRAME_WIDTH, 0, FRAME_WIDTH, FRAME_HEIGHT,
+                this.frameX * frameWidth, 0, frameWidth, frameHeight,
                 this.x, this.y, this.size, this.size
             );
         }
@@ -252,7 +254,6 @@ class Avatar {
         ctx.restore();
 
         // Draw message if present and not muted
-// Draw message if present and not muted
         if (this.message && this.messageTimer > 0 && !this.muteMessages) {
             ctx.save();
             ctx.font = `${Math.round(this.nameFontSize * 0.8)}px sans-serif`;
