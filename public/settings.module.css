@@ -2,7 +2,7 @@
     --primary: #b280ff;
     --background: #18181b;
     --input-bg: #474757;
-    --input-border: #333;
+    --input-border: #b280ff;
     --text: #fff;
     --label: #bdbdbd;
 }
@@ -37,12 +37,18 @@ input[type="color"] {
     width: 100%;
     padding: 8px 10px;
     border-radius: 6px;
-    border: 1px solid var(--input-border);
+    border: none;
     background: var(--input-bg);
     color: var(--text);
     font-size: 1rem;
     margin-bottom: 6px;
     box-sizing: border-box;
+}
+
+.input:focus,
+input[type="number"]:focus,
+input[type="color"]:focus {
+    outline: 2px solid var(--input-border);
 }
 
 input[type="color"] {
@@ -111,8 +117,7 @@ a {
 
 /* Sprite image */
 .sprite-img {
-    max-width: 60px;
-    max-height: 60px;
+    max-height: 50px;
 }
 
 /* Sprite frame label */
@@ -124,7 +129,6 @@ a {
 
 /* Sprite frame input */
 .sprite-frame-input {
-    width: 48px;
     margin: 2px 0 4px 0;
 }
 
