@@ -19,9 +19,104 @@ const enableDespawnInput = document.getElementById('enableDespawn');
 const despawnTimeInput = document.getElementById('despawnTime');
 
 const spriteInput = document.getElementById('spriteImage');
-const spritePreview = document.getElementById('spritePreview');
-const spriteFramesInput = document.getElementById('spriteFrames');
-let uploadedSpriteUrl = null;
+const spriteGallery = document.getElementById('spriteGallery');
+let uploadedSprites = []; // {url, frames}
+
+function renderSpriteGallery() {
+    spriteGallery.innerHTML = '';
+    uploadedSprites.forEach((s, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'flex';
+        wrapper.style.flexDirection = 'column';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.background = '#222';
+        wrapper.style.padding = '8px';
+        wrapper.style.borderRadius = '8px';
+
+        const img = document.createElement('img');
+        img.src = s.url;
+        img.style.maxWidth = '60px';
+        img.style.maxHeight = '60px';
+        img.title = `Frames: ${s.frames}`;
+        wrapper.appendChild(img);
+
+        const frameLabel = document.createElement('label');
+        frameLabel.textContent = 'Frames:';
+        frameLabel.style.color = '#bdbdbd';
+        frameLabel.style.fontSize = '0.9em';
+        frameLabel.style.marginTop = '4px';
+        wrapper.appendChild(frameLabel);
+
+        const frameInput = document.createElement('input');
+        frameInput.type = 'number';
+        frameInput.min = 1;
+        frameInput.max = 20;
+        frameInput.value = s.frames || 6;
+        frameInput.style.width = '48px';
+        frameInput.style.margin = '2px 0 4px 0';
+        frameInput.addEventListener('change', () => {
+            uploadedSprites[idx].frames = parseInt(frameInput.value, 10) || 6;
+            saveSpritesConfig();
+        });
+        wrapper.appendChild(frameInput);
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.className = 'button';
+        delBtn.style.background = '#e74c3c';
+        delBtn.style.fontSize = '0.9em';
+        delBtn.style.padding = '4px 10px';
+        delBtn.style.marginTop = '2px';
+        delBtn.addEventListener('click', () => {
+            fetch('/delete-sprite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: s.url })
+            }).then(() => {
+                uploadedSprites.splice(idx, 1);
+                renderSpriteGallery();
+                saveSpritesConfig();
+            });
+        });
+        wrapper.appendChild(delBtn);
+
+        spriteGallery.appendChild(wrapper);
+    });
+}
+
+function saveSpritesConfig() {
+    fetch('/set-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ...getFormConfig(),
+            sprites: uploadedSprites
+        })
+    });
+}
+
+function getFormConfig() {
+    return {
+        channelName: channelNameInput.value,
+        avatarColor: colorInput.value,
+        walkingSpeed: parseFloat(speedInput.value),
+        useTwitchColor: useTwitchColorInput.checked,
+        enableJumping: enableJumpingInput.checked,
+        jumpVelocity: parseFloat(jumpVelocityInput.value),
+        gravity: parseFloat(gravityInput.value),
+        jumpChance: parseFloat(jumpChanceInput.value),
+        enableMessageDisplay: enableMessageDisplayInput.checked,
+        messageChance: parseFloat(messageChanceInput.value),
+        avatarSize: parseInt(avatarSizeInput.value, 10),
+        nameFontSize: parseInt(nameFontSizeInput.value, 10),
+        directionChangeChance: parseFloat(directionChangeChanceInput.value),
+        muteMessages: muteMessagesInput.checked,
+        showShadows: showShadowsInput.checked,
+        avatarOpacity: parseFloat(avatarOpacityInput.value),
+        enableDespawn: enableDespawnInput.checked,
+        despawnTime: parseInt(despawnTimeInput.value, 10)
+    };
+}
 
 // Load settings from server
 fetch('/config')
@@ -45,53 +140,33 @@ fetch('/config')
         avatarOpacityInput.value = config.avatarOpacity || 1;
         enableDespawnInput.checked = !!config.enableDespawn;
         despawnTimeInput.value = config.despawnTime || 60;
-        spritePreview.src = config.spriteUrl || 'sprite.png';
-        spriteFramesInput.value = config.spriteFrames || 6;
-        uploadedSpriteUrl = config.spriteUrl || 'sprite.png';
+        uploadedSprites = Array.isArray(config.sprites) ? config.sprites : [];
+        renderSpriteGallery();
     });
 
-// Preview and upload sprite
 spriteInput.addEventListener('change', function() {
-    const file = spriteInput.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('sprite', file);
-    fetch('/upload-sprite', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            uploadedSpriteUrl = data.url;
-            spritePreview.src = data.url + '?t=' + Date.now();
-        }
+    const files = Array.from(spriteInput.files);
+    if (!files.length) return;
+    files.forEach(file => {
+        const formData = new FormData();
+        formData.append('sprite', file);
+        fetch('/upload-sprite', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    uploadedSprites.push({ url: data.url, frames: 6 });
+                    renderSpriteGallery();
+                    saveSpritesConfig();
+                }
+            });
     });
 });
 
 form.addEventListener('submit', function(e) {
     e.preventDefault();
     const newConfig = {
-        channelName: channelNameInput.value,
-        avatarColor: colorInput.value,
-        walkingSpeed: parseFloat(speedInput.value),
-        useTwitchColor: useTwitchColorInput.checked,
-        enableJumping: enableJumpingInput.checked,
-        jumpVelocity: parseFloat(jumpVelocityInput.value),
-        gravity: parseFloat(gravityInput.value),
-        jumpChance: parseFloat(jumpChanceInput.value),
-        enableMessageDisplay: enableMessageDisplayInput.checked,
-        messageChance: parseFloat(messageChanceInput.value),
-        avatarSize: parseInt(avatarSizeInput.value, 10),
-        nameFontSize: parseInt(nameFontSizeInput.value, 10),
-        directionChangeChance: parseFloat(directionChangeChanceInput.value),
-        muteMessages: muteMessagesInput.checked,
-        showShadows: showShadowsInput.checked,
-        avatarOpacity: parseFloat(avatarOpacityInput.value),
-        enableDespawn: enableDespawnInput.checked,
-        despawnTime: parseInt(despawnTimeInput.value, 10),
-        spriteUrl: uploadedSpriteUrl,
-        spriteFrames: parseInt(spriteFramesInput.value, 10) || 6
+        ...getFormConfig(),
+        sprites: uploadedSprites
     };
     fetch('/set-config', {
         method: 'POST',

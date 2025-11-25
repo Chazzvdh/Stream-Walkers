@@ -85,14 +85,30 @@ app.post('/set-config', (req, res) => {
     res.json({ success: true });
 });
 
-// Sprite upload endpoint
+// Sprite upload endpoint (append to array)
 app.post('/upload-sprite', upload.single('sprite'), (req, res) => {
     if (!req.file) return res.status(400).json({ success: false });
     const ext = req.file.originalname.split('.').pop();
     const newName = `sprite_${Date.now()}.${ext}`;
     const newPath = path.join('public/sprites', newName);
     fs.renameSync(req.file.path, newPath);
+    if (!Array.isArray(config.sprites)) config.sprites = [];
+    config.sprites.push({ url: `/sprites/${newName}`, frames: 6 });
+    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
     res.json({ success: true, url: `/sprites/${newName}` });
+});
+
+// Delete a single sprite endpoint
+app.post('/delete-sprite', (req, res) => {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ success: false });
+    if (Array.isArray(config.sprites)) {
+        config.sprites = config.sprites.filter(s => s.url !== url);
+        const filePath = path.join(__dirname, 'public', url);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+    }
+    res.json({ success: true });
 });
 
 server.listen(PORT, () => {

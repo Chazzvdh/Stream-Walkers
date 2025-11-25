@@ -17,6 +17,14 @@
   "avatarOpacity": 1,
   "enableDespawn": true,
   "despawnTime": 10,
-  "spriteUrl": "/sprites/sprite_1764077990029.png",
-  "spriteFrames": 8
+  "sprites": [
+    {
+      "url": "/sprites/sprite_1764080016616.png",
+      "frames": 8
+    },
+    {
+      "url": "/sprites/sprite_1764080068043.png",
+      "frames": 5
+    }
+  ]
 }

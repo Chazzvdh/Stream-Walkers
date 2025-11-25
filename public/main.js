@@ -3,17 +3,34 @@ const ctx = canvas.getContext('2d');
 const socket = io();
 
 const avatars = [];
-let spriteImage = new Image();
-let spriteFrames = 6; // default
-
+let spriteImages = [];
+let spriteFramesArr = [];
 let userSettings = null;
 
 async function loadConfig() {
     const res = await fetch('/config');
     userSettings = await res.json();
-    spriteImage.src = userSettings.spriteUrl || 'sprite.png';
-    spriteFrames = userSettings.spriteFrames || 6;
-    spriteImage.onload = startApp;
+    if (Array.isArray(userSettings.sprites) && userSettings.sprites.length > 0) {
+        spriteImages = userSettings.sprites.map(s => {
+            const img = new Image();
+            img.src = s.url;
+            return img;
+        });
+        spriteFramesArr = userSettings.sprites.map(s => s.frames || 6);
+        // Wait for all images to load
+        await Promise.all(spriteImages.map(img => new Promise(r => {
+            if (img.complete) r();
+            else img.onload = r;
+        })));
+        startApp();
+    } else {
+        // fallback to single sprite
+        const img = new Image();
+        img.src = userSettings.spriteUrl || 'sprite.png';
+        spriteImages = [img];
+        spriteFramesArr = [userSettings.spriteFrames || 6];
+        img.onload = startApp;
+    }
 }
 
 let prevWidth = canvas.width;
@@ -77,7 +94,8 @@ function saveAvatars(channelName, avatars) {
         y: a.y,
         baseY: a.baseY,
         dx: a.dx,
-        spawnTime: a.spawnTime
+        spawnTime: a.spawnTime,
+        spriteIdx: a.spriteIdx
     }));
     localStorage.setItem('avatars_' + channelName, JSON.stringify(data));
     localStorage.setItem('avatars_channel', channelName);
@@ -89,7 +107,7 @@ function loadAvatars(channelName, settings) {
     try {
         const arr = JSON.parse(saved);
         return arr.map(a => {
-            const avatar = new Avatar(a.username, a.color, settings.walkingSpeed, settings);
+            const avatar = new Avatar(a.username, a.color, settings.walkingSpeed, settings, a.spriteIdx);
             avatar.x = a.x;
             avatar.y = a.y;
             avatar.baseY = a.baseY;
@@ -128,7 +146,7 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 // --- End word wrapping helper ---
 
 class Avatar {
-    constructor(username, color, walkingSpeed = 1, settings = {}) {
+    constructor(username, color, walkingSpeed = 1, settings = {}, spriteIdx = null) {
         this.settings = settings;
         this.size = settings.avatarSize || 64;
         this.x = Math.random() * (canvas.width - this.size);
@@ -154,6 +172,14 @@ class Avatar {
         this.nameFontSize = settings.nameFontSize || 20;
         this.muteMessages = !!settings.muteMessages;
         this.spawnTime = Date.now();
+        // Sprite selection
+        if (spriteIdx !== null && spriteImages[spriteIdx]) {
+            this.spriteIdx = spriteIdx;
+        } else {
+            this.spriteIdx = Math.floor(Math.random() * spriteImages.length);
+        }
+        this.spriteImage = spriteImages[this.spriteIdx];
+        this.spriteFrames = spriteFramesArr[this.spriteIdx];
     }
 
     setMessage(msg) {
@@ -183,8 +209,8 @@ class Avatar {
         if (this.x < 0 || this.x + this.size > canvas.width) {
             this.dx *= -1;
         }
-        if (this.gameFrame % Math.max(1, Math.floor(60 / spriteFrames)) === 0) {
-            this.frameX = (this.frameX + 1) % spriteFrames;
+        if (this.gameFrame % Math.max(1, Math.floor(60 / this.spriteFrames)) === 0) {
+            this.frameX = (this.frameX + 1) % this.spriteFrames;
         }
         if (this.messageTimer > 0) {
             this.messageTimer--;
@@ -222,20 +248,20 @@ class Avatar {
         }
 
         // Calculate frame width/height based on image and frame count
-        const frameWidth = spriteImage.width / spriteFrames;
-        const frameHeight = spriteImage.height;
+        const frameWidth = this.spriteImage.width / this.spriteFrames;
+        const frameHeight = this.spriteImage.height;
 
         // Draw avatar sprite
         if (this.dx < 0) {
             ctx.scale(-1, 1);
             ctx.drawImage(
-                spriteImage,
+                this.spriteImage,
                 this.frameX * frameWidth, 0, frameWidth, frameHeight,
                 -this.x - this.size, this.y, this.size, this.size
             );
         } else {
             ctx.drawImage(
-                spriteImage,
+                this.spriteImage,
                 this.frameX * frameWidth, 0, frameWidth, frameHeight,
                 this.x, this.y, this.size, this.size
             );
@@ -361,11 +387,7 @@ function startApp() {
         requestAnimationFrame(animate);
     }
 
-    if (spriteImage.complete) {
-        animate();
-    } else {
-        spriteImage.onload = animate;
-    }
+    animate();
 }
 
 loadConfig();
