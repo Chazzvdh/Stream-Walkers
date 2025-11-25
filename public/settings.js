@@ -26,25 +26,17 @@ function renderSpriteGallery() {
     spriteGallery.innerHTML = '';
     uploadedSprites.forEach((s, idx) => {
         const wrapper = document.createElement('div');
-        wrapper.style.display = 'flex';
-        wrapper.style.flexDirection = 'column';
-        wrapper.style.alignItems = 'center';
-        wrapper.style.background = '#222';
-        wrapper.style.padding = '8px';
-        wrapper.style.borderRadius = '8px';
+        wrapper.className = 'sprite-wrapper';
 
         const img = document.createElement('img');
         img.src = s.url;
-        img.style.maxWidth = '60px';
-        img.style.maxHeight = '60px';
+        img.className = 'sprite-img';
         img.title = `Frames: ${s.frames}`;
         wrapper.appendChild(img);
 
         const frameLabel = document.createElement('label');
         frameLabel.textContent = 'Frames:';
-        frameLabel.style.color = '#bdbdbd';
-        frameLabel.style.fontSize = '0.9em';
-        frameLabel.style.marginTop = '4px';
+        frameLabel.className = 'sprite-frame-label';
         wrapper.appendChild(frameLabel);
 
         const frameInput = document.createElement('input');
@@ -52,8 +44,7 @@ function renderSpriteGallery() {
         frameInput.min = 1;
         frameInput.max = 20;
         frameInput.value = s.frames || 6;
-        frameInput.style.width = '48px';
-        frameInput.style.margin = '2px 0 4px 0';
+        frameInput.className = 'sprite-frame-input';
         frameInput.addEventListener('change', () => {
             uploadedSprites[idx].frames = parseInt(frameInput.value, 10) || 6;
             saveSpritesConfig();
@@ -61,12 +52,9 @@ function renderSpriteGallery() {
         wrapper.appendChild(frameInput);
 
         const delBtn = document.createElement('button');
+        delBtn.type = 'button'; // Prevent form submission
         delBtn.textContent = 'Delete';
-        delBtn.className = 'button';
-        delBtn.style.background = '#e74c3c';
-        delBtn.style.fontSize = '0.9em';
-        delBtn.style.padding = '4px 10px';
-        delBtn.style.marginTop = '2px';
+        delBtn.className = 'button sprite-delete-btn';
         delBtn.addEventListener('click', () => {
             fetch('/delete-sprite', {
                 method: 'POST',
