@@ -4,6 +4,26 @@
 
 ---
 
+## License & Terms
+
+This project is free for **Personal Use**, but closed for **Commercial Redistribution**.
+
+### ✅ You are free to:
+- **Use on Stream:** Run this overlay on your own personal Twitch or YouTube channel.
+- **Customize:** Modify the code, sprites, and settings to fit your personal branding.
+- **Learn:** Read the source code for educational purposes.
+
+### ❌ You are NOT allowed to:
+- **Sell:** You cannot sell this software, specific features, or installation services for money.
+- **Redistribute:** You cannot re-upload this code (modified or unmodified) to other repositories or websites claiming it as your own product.
+- **Commercialize:** You cannot include this code in a paid software bundle or SaaS product.
+
+### Attribution
+If you use this project, please credit the original author or link back to this repository.
+
+*Copyright © [2025] [RAZE Digital]. All Rights Reserved for Commercial Use.*
+
+---
 ## Features
 
 - **Animated Avatars:** Distinct avatars for each Twitch chatter.
@@ -89,19 +109,6 @@
 - [body-parser](https://www.npmjs.com/package/body-parser)
 - [cors](https://www.npmjs.com/package/cors)
 - [nodemon](https://www.npmjs.com/package/nodemon) (dev)
-
----
-
-## License & Usage
-
-**© Copyright [2025] [RAZE Digital]. All Rights Reserved.**
-
-This project and its source code are **Proprietary**.
-
-- **You MAY:** View this code for educational purposes or to evaluate the developer's portfolio.
-- **You MAY NOT:** Use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.
-
-Unauthorized copying of this file, via any medium, is strictly prohibited.
 
 ---
 
