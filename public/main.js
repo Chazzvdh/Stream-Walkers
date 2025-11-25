@@ -26,13 +26,14 @@ function resizeCanvas() {
     const newHeight = window.innerHeight;
 
     // Scale avatar positions
-    if (prevWidth && prevHeight) {
+    if (prevWidth) {
         const scaleX = newWidth / prevWidth;
-        const scaleY = newHeight / prevHeight;
         avatars.forEach(avatar => {
             avatar.x *= scaleX;
-            avatar.y *= scaleY;
-            avatar.baseY *= scaleY;
+            avatar.baseY = newHeight - avatar.size - 10;
+            if (!avatar.isJumping) {
+                avatar.y = avatar.baseY;
+            }
         });
     }
 
@@ -103,6 +104,30 @@ function loadAvatars(channelName, settings) {
     }
 }
 // --- End Avatar persistence helpers ---
+
+// --- Word wrapping helper ---
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+    let lines = [];
+    for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+            lines.push(line);
+            line = words[n] + ' ';
+        } else {
+            line = testLine;
+        }
+    }
+    lines.push(line);
+    for (let i = 0; i < lines.length; i++) {
+        ctx.strokeText(lines[i], x, y + i * lineHeight);
+        ctx.fillText(lines[i], x, y + i * lineHeight);
+    }
+}
+// --- End word wrapping helper ---
 
 class Avatar {
     constructor(username, color, walkingSpeed = 1, settings = {}) {
@@ -227,15 +252,43 @@ class Avatar {
         ctx.restore();
 
         // Draw message if present and not muted
+// Draw message if present and not muted
         if (this.message && this.messageTimer > 0 && !this.muteMessages) {
             ctx.save();
             ctx.font = `${Math.round(this.nameFontSize * 0.8)}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 3;
-            ctx.strokeText(this.message, this.x + this.size / 2, this.y - 50);
             ctx.fillStyle = '#fff';
-            ctx.fillText(this.message, this.x + this.size / 2, this.y - 50);
+            const maxWidth = Math.max(200, this.size * 2);
+            const lineHeight = Math.round(this.nameFontSize * 0.9);
+
+            // Calculate wrapped lines
+            const words = this.message.split(' ');
+            let line = '';
+            let lines = [];
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                const testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    lines.push(line);
+                    line = words[n] + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+            lines.push(line);
+
+            // Calculate y so the bottom of the text is above the character
+            const totalHeight = lines.length * lineHeight;
+            const baseY = this.y - 55; // 55 keeps a gap above the avatar
+            const startY = baseY - totalHeight + lineHeight;
+
+            for (let i = 0; i < lines.length; i++) {
+                ctx.strokeText(lines[i], this.x + this.size / 2, startY + i * lineHeight);
+                ctx.fillText(lines[i], this.x + this.size / 2, startY + i * lineHeight);
+            }
             ctx.restore();
         }
     }
