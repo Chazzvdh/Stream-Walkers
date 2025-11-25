@@ -26,7 +26,7 @@ async function loadConfig() {
     } else {
         // fallback to single sprite
         const img = new Image();
-        img.src = userSettings.spriteUrl || 'sprite.png';
+        img.src = userSettings.spriteUrl;
         spriteImages = [img];
         spriteFramesArr = [userSettings.spriteFrames || 6];
         img.onload = startApp;
