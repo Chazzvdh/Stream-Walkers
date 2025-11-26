@@ -17,13 +17,18 @@
   "avatarOpacity": 1,
   "enableDespawn": true,
   "despawnTime": 60,
-  "messageDisappearTime": 10,
+  "messageDisappearTime": 20,
   "nameFontFamily": "Arial, sans-serif",
   "nameFontWeight": "normal",
   "nameFontStyle": "normal",
+  "nameStrokeStyle": "#000000",
+  "nameLineWidth": 1,
   "messageFontFamily": "Arial, sans-serif",
   "messageFontWeight": "normal",
   "messageFontStyle": "normal",
+  "messageStrokeStyle": "#000000",
+  "messageLineWidth": 2,
+  "messageFillStyle": "#ffffff",
   "sprites": [
     {
       "url": "/sprites/sprite_1764146406148.png",
@@ -48,7 +53,7 @@
         "x": 0,
         "y": 0,
         "w": 567,
-        "h": 54
+        "h": 55
       }
     }
   ]

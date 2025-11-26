@@ -79,6 +79,8 @@ function getUserSettings() {
         nameFontFamily: userSettings.nameFontFamily || 'sans-serif',
         nameFontWeight: userSettings.nameFontWeight || 'bold',
         nameFontStyle: userSettings.nameFontStyle || 'normal',
+        nameStrokeStyle: userSettings.nameStrokeStyle || '#000000',
+        nameLineWidth: userSettings.nameLineWidth != null ? userSettings.nameLineWidth : 2,
         directionChangeChance: parseFloat(userSettings.directionChangeChance) || 1,
         muteMessages: !!userSettings.muteMessages,
         showShadows: userSettings.showShadows !== undefined ? !!userSettings.showShadows : true,
@@ -89,6 +91,9 @@ function getUserSettings() {
         messageFontFamily: userSettings.messageFontFamily || 'sans-serif',
         messageFontWeight: userSettings.messageFontWeight || 'normal',
         messageFontStyle: userSettings.messageFontStyle || 'normal',
+        messageStrokeStyle: userSettings.messageStrokeStyle || '#000000',
+        messageLineWidth: userSettings.messageLineWidth != null ? userSettings.messageLineWidth : 3,
+        messageFillStyle: userSettings.messageFillStyle || '#ffffff',
     };
 }
 
@@ -155,9 +160,14 @@ class Avatar {
         this.nameFontFamily = settings.nameFontFamily || 'sans-serif';
         this.nameFontWeight = settings.nameFontWeight || 'bold';
         this.nameFontStyle = settings.nameFontStyle || 'normal';
+        this.nameStrokeStyle = settings.nameStrokeStyle || '#000000';
+        this.nameLineWidth = settings.nameLineWidth != null ? settings.nameLineWidth : 2;
         this.messageFontFamily = settings.messageFontFamily || 'sans-serif';
         this.messageFontWeight = settings.messageFontWeight || 'normal';
         this.messageFontStyle = settings.messageFontStyle || 'normal';
+        this.messageStrokeStyle = settings.messageStrokeStyle || '#000000';
+        this.messageLineWidth = settings.messageLineWidth != null ? settings.messageLineWidth : 3;
+        this.messageFillStyle = settings.messageFillStyle || '#ffffff';
         this.spawnTime = Date.now();
         this.messageDisappearTime = settings.messageDisappearTime || 3;
         // Sprite selection
@@ -296,8 +306,8 @@ class Avatar {
         ctx.fillStyle = this.color;
         ctx.font = `${this.nameFontStyle} ${this.nameFontWeight} ${this.nameFontSize}px ${this.nameFontFamily}`;
         ctx.textAlign = 'center';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = this.nameStrokeStyle;
+        ctx.lineWidth = this.nameLineWidth;
         ctx.strokeText(this.username, this.x + this.size / 2, this.y - 10);
         ctx.fillText(this.username, this.x + this.size / 2, this.y - 10);
         ctx.restore();
@@ -307,9 +317,9 @@ class Avatar {
             ctx.save();
             ctx.font = `${this.messageFontStyle} ${this.messageFontWeight} ${Math.round(this.nameFontSize * 0.8)}px ${this.messageFontFamily}`;
             ctx.textAlign = 'center';
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 3;
-            ctx.fillStyle = '#fff';
+            ctx.strokeStyle = this.messageStrokeStyle;
+            ctx.lineWidth = this.messageLineWidth;
+            ctx.fillStyle = this.messageFillStyle;
             const maxWidth = Math.max(200, this.size * 2);
             const lineHeight = Math.round(this.nameFontSize * 0.9);
 

@@ -26,9 +26,14 @@ let uploadedSprites = []; // {url, frames, framesX, framesY, direction, crop}
 const nameFontFamilyInput = document.getElementById('nameFontFamily');
 const nameFontWeightInput = document.getElementById('nameFontWeight');
 const nameFontStyleInput = document.getElementById('nameFontStyle');
+const nameStrokeStyleInput = document.getElementById('nameStrokeStyle');
+const nameLineWidthInput = document.getElementById('nameLineWidth');
 const messageFontFamilyInput = document.getElementById('messageFontFamily');
 const messageFontWeightInput = document.getElementById('messageFontWeight');
 const messageFontStyleInput = document.getElementById('messageFontStyle');
+const messageStrokeStyleInput = document.getElementById('messageStrokeStyle');
+const messageLineWidthInput = document.getElementById('messageLineWidth');
+const messageFillStyleInput = document.getElementById('messageFillStyle');
 
 function renderSpriteGallery() {
     spriteGallery.innerHTML = '';
@@ -45,11 +50,17 @@ function renderSpriteGallery() {
             canvas.height = crop.h;
             canvas.className = 'sprite-img';
 
-            // Always set CSS height to 50px, width auto (preserve aspect)
-            const cssH = 50;
-            const cssW = Math.round((crop.w / crop.h) * cssH);
+            // Responsive: limit width to 90vw (desktop) or 80vw (mobile)
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const maxW = vw <= 700 ? vw * 0.8 : vw * 0.9;
+            const cssH = vw <= 700 ? 36 : 50;
+            let cssW = Math.round((crop.w / crop.h) * cssH);
+            if (cssW > maxW) {
+                cssW = maxW;
+            }
             canvas.style.height = cssH + 'px';
             canvas.style.width = cssW + 'px';
+            canvas.style.maxWidth = '100vw';
 
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, crop.w, crop.h);
@@ -165,9 +176,14 @@ function getFormConfig() {
         nameFontFamily: nameFontFamilyInput.value,
         nameFontWeight: nameFontWeightInput.value,
         nameFontStyle: nameFontStyleInput.value,
+        nameStrokeStyle: nameStrokeStyleInput.value,
+        nameLineWidth: parseInt(nameLineWidthInput.value, 10),
         messageFontFamily: messageFontFamilyInput.value,
         messageFontWeight: messageFontWeightInput.value,
         messageFontStyle: messageFontStyleInput.value,
+        messageStrokeStyle: messageStrokeStyleInput.value,
+        messageLineWidth: parseInt(messageLineWidthInput.value, 10),
+        messageFillStyle: messageFillStyleInput.value,
     };
 }
 
@@ -198,9 +214,14 @@ fetch('/config')
         nameFontFamilyInput.value = config.nameFontFamily || '';
         nameFontWeightInput.value = config.nameFontWeight || 'normal';
         nameFontStyleInput.value = config.nameFontStyle || 'normal';
+        nameStrokeStyleInput.value = config.nameStrokeStyle || '#000000';
+        nameLineWidthInput.value = config.nameLineWidth != null ? config.nameLineWidth : 2;
         messageFontFamilyInput.value = config.messageFontFamily || '';
         messageFontWeightInput.value = config.messageFontWeight || 'normal';
         messageFontStyleInput.value = config.messageFontStyle || 'normal';
+        messageStrokeStyleInput.value = config.messageStrokeStyle || '#000000';
+        messageLineWidthInput.value = config.messageLineWidth != null ? config.messageLineWidth : 3;
+        messageFillStyleInput.value = config.messageFillStyle || '#ffffff';
         renderSpriteGallery();
     });
 
