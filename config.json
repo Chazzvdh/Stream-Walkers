@@ -17,6 +17,7 @@
   "avatarOpacity": 1,
   "enableDespawn": true,
   "despawnTime": 60,
+  "messageDisappearTime": 10,
   "sprites": [
     {
       "url": "/sprites/sprite_1764146406148.png",

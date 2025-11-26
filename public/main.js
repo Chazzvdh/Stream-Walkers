@@ -81,7 +81,8 @@ function getUserSettings() {
         showShadows: userSettings.showShadows !== undefined ? !!userSettings.showShadows : true,
         avatarOpacity: parseFloat(userSettings.avatarOpacity) || 1,
         enableDespawn: !!userSettings.enableDespawn,
-        despawnTime: parseInt(userSettings.despawnTime, 10) || 60
+        despawnTime: parseInt(userSettings.despawnTime, 10) || 60,
+        messageDisappearTime: parseFloat(userSettings.messageDisappearTime) || 3
     };
 }
 
@@ -127,7 +128,7 @@ class Avatar {
         this.x = Math.random() * (canvas.width - this.size);
         this.y = canvas.height - this.size - 10;
         this.baseY = this.y;
-        const randomSpeedFactor = Math.random() * 1 + 0.5;
+        const randomSpeedFactor = Math.random() + 0.5;
         this.dx = (Math.random() < 0.5 ? 1 : -1) * walkingSpeed * randomSpeedFactor;
         this.username = username;
         this.color = color;
@@ -147,6 +148,7 @@ class Avatar {
         this.nameFontSize = settings.nameFontSize || 20;
         this.muteMessages = !!settings.muteMessages;
         this.spawnTime = Date.now();
+        this.messageDisappearTime = settings.messageDisappearTime || 3;
         // Sprite selection
         if (spriteIdx !== null && spriteImages[spriteIdx]) {
             this.spriteIdx = spriteIdx;
@@ -159,7 +161,7 @@ class Avatar {
 
     setMessage(msg) {
         this.message = msg;
-        this.messageTimer = 180; // 3 seconds at 60 FPS
+        this.messageTimer = Math.round((this.messageDisappearTime || 3) * 60); // seconds to frames
     }
 
     update() {

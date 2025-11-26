@@ -17,6 +17,7 @@ const showShadowsInput = document.getElementById('showShadows');
 const avatarOpacityInput = document.getElementById('avatarOpacity');
 const enableDespawnInput = document.getElementById('enableDespawn');
 const despawnTimeInput = document.getElementById('despawnTime');
+const messageDisappearTimeInput = document.getElementById('messageDisappearTime');
 
 const spriteInput = document.getElementById('spriteImage');
 const spriteGallery = document.getElementById('spriteGallery');
@@ -152,7 +153,8 @@ function getFormConfig() {
         showShadows: showShadowsInput.checked,
         avatarOpacity: parseFloat(avatarOpacityInput.value),
         enableDespawn: enableDespawnInput.checked,
-        despawnTime: parseInt(despawnTimeInput.value, 10)
+        despawnTime: parseInt(despawnTimeInput.value, 10),
+        messageDisappearTime: parseFloat(messageDisappearTimeInput.value)
     };
 }
 
@@ -178,6 +180,7 @@ fetch('/config')
         avatarOpacityInput.value = config.avatarOpacity || 1;
         enableDespawnInput.checked = !!config.enableDespawn;
         despawnTimeInput.value = config.despawnTime || 60;
+        messageDisappearTimeInput.value = config.messageDisappearTime || 3;
         uploadedSprites = Array.isArray(config.sprites) ? config.sprites : [];
         renderSpriteGallery();
     });
@@ -357,3 +360,27 @@ useTwitchColorInput.addEventListener('change', () => {
 speedInput.addEventListener('change', () => {
     clearAvatarsForCurrentChannel();
 });
+
+// --- Settings Search Bar Logic ---
+const searchInput = document.getElementById('settingsSearch');
+if (searchInput) {
+    searchInput.addEventListener('input', function () {
+        const q = searchInput.value.trim().toLowerCase();
+        const categories = document.querySelectorAll('.category');
+        categories.forEach(cat => {
+            // Combine all label and input text in this category
+            let text = cat.innerText.toLowerCase();
+            // If any input has a placeholder, include it
+            cat.querySelectorAll('input,select,button,label').forEach(el => {
+                if (el.placeholder) text += ' ' + el.placeholder.toLowerCase();
+                if (el.value && el.type === 'button') text += ' ' + el.value.toLowerCase();
+            });
+            // Show if query matches, hide otherwise
+            if (q === '' || text.indexOf(q) !== -1) {
+                cat.style.display = '';
+            } else {
+                cat.style.display = 'none';
+            }
+        });
+    });
+}
