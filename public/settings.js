@@ -50,18 +50,6 @@ function renderSpriteGallery() {
             canvas.height = crop.h;
             canvas.className = 'sprite-img';
 
-            // Responsive: limit width to 90vw (desktop) or 80vw (mobile)
-            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-            const maxW = vw <= 700 ? vw * 0.8 : vw * 0.9;
-            const cssH = vw <= 700 ? 36 : 50;
-            let cssW = Math.round((crop.w / crop.h) * cssH);
-            if (cssW > maxW) {
-                cssW = maxW;
-            }
-            canvas.style.height = cssH + 'px';
-            canvas.style.width = cssW + 'px';
-            canvas.style.maxWidth = '100vw';
-
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, crop.w, crop.h);
             ctx.drawImage(
@@ -93,16 +81,17 @@ function renderSpriteGallery() {
         });
         wrapper.appendChild(frameInput);
 
-        // --- Edit button ---
+        // --- Edit and Delete buttons side by side ---
+        const btnRow = document.createElement('div');
+        btnRow.className = 'sprite-btn-row';
+
         const editBtn = document.createElement('button');
         editBtn.type = 'button';
         editBtn.textContent = 'Edit';
         editBtn.className = 'button';
-        editBtn.style.marginTop = '4px';
         editBtn.addEventListener('click', () => openSpriteEditor(idx));
-        wrapper.appendChild(editBtn);
+        btnRow.appendChild(editBtn);
 
-        // --- Delete button ---
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
         delBtn.textContent = 'Delete';
@@ -118,7 +107,9 @@ function renderSpriteGallery() {
                 saveSpritesConfig();
             });
         });
-        wrapper.appendChild(delBtn);
+        btnRow.appendChild(delBtn);
+
+        wrapper.appendChild(btnRow);
 
         spriteGallery.appendChild(wrapper);
     });

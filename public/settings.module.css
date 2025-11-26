@@ -1,11 +1,12 @@
 :root {
-    --primary: #b280ff;
+    --primary: #b18fff;
     --background: #18181b;
-    --secondary: #000000;
-    --input-bg: #474757;
-    --input-border: #b280ff;
-    --text: #fff;
-    --label: #bdbdbd;
+    --secondary: #000000; /* Use judiciously */
+    --input-bg: #2c2c35;
+    --input-border: #948aaf;
+    --input-border-focus: #9366ff;
+    --text: #f0f0f0;
+    --label: #c7c7c7;
 }
 
 .body {
@@ -43,12 +44,19 @@
     font-size: 1rem;
     margin-bottom: 6px;
     box-sizing: border-box;
+    outline: 1px solid var(--input-border);
+}
+
+input[type="color"] {
+    cursor: pointer;
+    border-radius: 0;
+    padding: 0;
 }
 
 .input:focus,
 input[type="number"]:focus,
 input[type="color"]:focus {
-    outline: 2px solid var(--input-border);
+    outline: 2px solid var(--input-border-focus);
 }
 
 input[type="color"] {
@@ -141,7 +149,7 @@ a {
     background: #e74c3c;
     font-size: 0.9em;
     padding: 4px 10px;
-    margin-top: 2px;
+    /* margin-top: 2px; */ /* Remove margin-top so buttons align */
 }
 
 /* Sprite Editor Modal */
@@ -190,7 +198,7 @@ a {
 
 .sprite-editor-hint {
     margin-top: 8px;
-    color: #aaa;
+    color: var(--text);
     font-size: 0.95em;
 }
 
@@ -200,6 +208,19 @@ a {
     font-size: 1.1rem;
     max-width: 400px;
     display: block;
+}
+
+#settingsSearch::placeholder {
+    color: var(--label);
+}
+
+.sprite-btn-row {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    margin-top: 4px;
+    width: 100%;
+    justify-content: center;
 }
 
 @media (max-width: 700px) {
