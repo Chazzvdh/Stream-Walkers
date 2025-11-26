@@ -273,6 +273,12 @@ a {
         max-width: 98vw;
         height: 36px;
     }
+    .sprite-btn-row {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        align-items: stretch;
+    }
 }
 
 @media (max-width: 400px) {
