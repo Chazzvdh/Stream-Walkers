@@ -1,8 +1,8 @@
 {
   "channelName": "pestily",
   "avatarColor": "#ffffff",
-  "walkingSpeed": 1,
-  "useTwitchColor": false,
+  "walkingSpeed": 0.5,
+  "useTwitchColor": true,
   "enableJumping": true,
   "jumpVelocity": 5,
   "gravity": 0.5,
@@ -41,7 +41,7 @@
         "x": 0,
         "y": 0,
         "w": 567,
-        "h": 55
+        "h": 54
       }
     }
   ]

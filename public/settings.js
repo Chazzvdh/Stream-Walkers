@@ -215,21 +215,6 @@ form.addEventListener('submit', function(e) {
     });
 });
 
-function clearAvatarsForCurrentChannel() {
-    const channel = channelNameInput.value;
-    localStorage.removeItem('avatars_' + channel);
-}
-
-enableDespawnInput.addEventListener('change', () => {
-    if (enableDespawnInput.checked) {
-        clearAvatarsForCurrentChannel();
-    }
-});
-
-useTwitchColorInput.addEventListener('change', () => {
-    clearAvatarsForCurrentChannel();
-});
-
 // Sprite Editor logic
 let editingSpriteIdx = null;
 let editorImage = null;
@@ -352,4 +337,23 @@ saveSpriteEdit.addEventListener('click', () => {
         saveSpritesConfig();
         spriteEditorModal.classList.remove('active'); // <-- fix here
     }
+});
+
+function clearAvatarsForCurrentChannel() {
+    const channel = channelNameInput.value;
+    localStorage.removeItem('avatars_' + channel);
+}
+
+enableDespawnInput.addEventListener('change', () => {
+    if (enableDespawnInput.checked) {
+        clearAvatarsForCurrentChannel();
+    }
+});
+
+useTwitchColorInput.addEventListener('change', () => {
+    clearAvatarsForCurrentChannel();
+});
+
+speedInput.addEventListener('change', () => {
+    clearAvatarsForCurrentChannel();
 });

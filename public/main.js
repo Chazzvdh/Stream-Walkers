@@ -121,33 +121,8 @@ function loadAvatars(channelName, settings) {
 }
 // --- End Avatar persistence helpers ---
 
-// --- Word wrapping helper ---
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-    const words = text.split(' ');
-    let line = '';
-    let lines = [];
-    for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = ctx.measureText(testLine);
-        const testWidth = metrics.width;
-        if (testWidth > maxWidth && n > 0) {
-            lines.push(line);
-            line = words[n] + ' ';
-        } else {
-            line = testLine;
-        }
-    }
-    lines.push(line);
-    for (let i = 0; i < lines.length; i++) {
-        ctx.strokeText(lines[i], x, y + i * lineHeight);
-        ctx.fillText(lines[i], x, y + i * lineHeight);
-    }
-}
-// --- End word wrapping helper ---
-
 class Avatar {
     constructor(username, color, walkingSpeed = 1, settings = {}, spriteIdx = null) {
-        this.settings = settings;
         this.size = settings.avatarSize || 64;
         this.x = Math.random() * (canvas.width - this.size);
         this.y = canvas.height - this.size - 10;
@@ -308,7 +283,7 @@ class Avatar {
         ctx.fillStyle = this.color;
         ctx.font = `${this.nameFontSize}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+        ctx.strokeStyle = 'rgba(0,0,0,1)';
         ctx.lineWidth = 2;
         ctx.strokeText(this.username, this.x + this.size / 2, this.y - 10);
         ctx.fillText(this.username, this.x + this.size / 2, this.y - 10);
