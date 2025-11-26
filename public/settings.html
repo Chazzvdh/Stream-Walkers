@@ -93,6 +93,30 @@
     <button type="submit" class="button">Save</button>
 </form>
 <p><a href="#">Back</a></p>
+
+<!-- Sprite Editor Modal -->
+<div id="spriteEditorModal" class="sprite-editor-modal">
+    <div class="sprite-editor-content">
+        <button id="closeSpriteEditor" class="sprite-editor-close">✖</button>
+        <h2>Edit Sprite</h2>
+        <canvas id="spriteEditorCanvas" width="400" height="200" class="sprite-editor-canvas"></canvas>
+        <div class="sprite-editor-controls">
+            <label>Frames: <input type="number" id="editorFrames" min="1" max="20" value="6" style="width:60px;"></label>
+            <label>Frames X: <input type="number" id="editorFramesX" min="1" max="20" value="6" style="width:60px;"></label>
+            <label>Frames Y: <input type="number" id="editorFramesY" min="1" max="20" value="1" style="width:60px;"></label>
+            <label>Direction:
+                <select id="editorDirection">
+                    <option value="horizontal">Horizontal</option>
+                    <option value="vertical">Vertical</option>
+                </select>
+            </label>
+            <button id="saveSpriteEdit" class="button">Save</button>
+        </div>
+        <div class="sprite-editor-hint">
+            Drag to select crop area. Adjust frames and direction as needed.
+        </div>
+    </div>
+</div>
 <script src="settings.js"></script>
 </body>
 </html>

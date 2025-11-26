@@ -247,23 +247,58 @@ class Avatar {
             ctx.restore();
         }
 
-        // Calculate frame width/height based on image and frame count
-        const frameWidth = this.spriteImage.width / this.spriteFrames;
-        const frameHeight = this.spriteImage.height;
+        // --- Sprite cropping and direction logic ---
+        let spriteConfig = (userSettings.sprites && userSettings.sprites[this.spriteIdx]) || {};
+        let crop = spriteConfig.crop || { x: 0, y: 0, w: this.spriteImage.width, h: this.spriteImage.height };
+        let direction = spriteConfig.direction || 'horizontal';
+        let frames = spriteConfig.frames || this.spriteFrames;
 
-        // Draw avatar sprite
+        let frameWidth, frameHeight, sx, sy;
+        if (direction === 'vertical') {
+            frameWidth = crop.w;
+            frameHeight = crop.h / frames;
+            sx = crop.x;
+            sy = crop.y + this.frameX * frameHeight;
+        } else {
+            frameWidth = crop.w / frames;
+            frameHeight = crop.h;
+            sx = crop.x + this.frameX * frameWidth;
+            sy = crop.y;
+        }
+
+        // --- Aspect ratio correction ---
+        const targetW = this.size;
+        const targetH = this.size;
+        const frameAspect = frameWidth / frameHeight;
+        const targetAspect = targetW / targetH;
+
+        let drawW, drawH;
+        if (frameAspect > targetAspect) {
+            // Frame is wider than target: fit width
+            drawW = targetW;
+            drawH = targetW / frameAspect;
+        } else {
+            // Frame is taller than target: fit height
+            drawH = targetH;
+            drawW = targetH * frameAspect;
+        }
+        const offsetX = this.x + (targetW - drawW) / 2;
+        const offsetY = this.y + (targetH - drawH) / 2;
+
         if (this.dx < 0) {
+            ctx.save();
             ctx.scale(-1, 1);
             ctx.drawImage(
                 this.spriteImage,
-                this.frameX * frameWidth, 0, frameWidth, frameHeight,
-                -this.x - this.size, this.y, this.size, this.size
+                sx, sy, frameWidth, frameHeight,
+                -offsetX - drawW, offsetY, drawW, drawH
             );
+            ctx.restore();
         } else {
             ctx.drawImage(
                 this.spriteImage,
-                this.frameX * frameWidth, 0, frameWidth, frameHeight,
-                this.x, this.y, this.size, this.size
+                sx, sy, frameWidth, frameHeight,
+                offsetX, offsetY, drawW, drawH
             );
         }
         ctx.restore();
@@ -273,8 +308,8 @@ class Avatar {
         ctx.fillStyle = this.color;
         ctx.font = `${this.nameFontSize}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+        ctx.lineWidth = 2;
         ctx.strokeText(this.username, this.x + this.size / 2, this.y - 10);
         ctx.fillText(this.username, this.x + this.size / 2, this.y - 10);
         ctx.restore();

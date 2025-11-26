@@ -20,7 +20,7 @@ const despawnTimeInput = document.getElementById('despawnTime');
 
 const spriteInput = document.getElementById('spriteImage');
 const spriteGallery = document.getElementById('spriteGallery');
-let uploadedSprites = []; // {url, frames}
+let uploadedSprites = []; // {url, frames, framesX, framesY, direction, crop}
 
 function renderSpriteGallery() {
     spriteGallery.innerHTML = '';
@@ -28,12 +28,35 @@ function renderSpriteGallery() {
         const wrapper = document.createElement('div');
         wrapper.className = 'sprite-wrapper';
 
-        const img = document.createElement('img');
+        const img = new window.Image();
         img.src = s.url;
-        img.className = 'sprite-img';
-        img.title = `Frames: ${s.frames}`;
-        wrapper.appendChild(img);
+        img.onload = () => {
+            const crop = s.crop || { x: 0, y: 0, w: img.width, h: img.height };
+            const canvas = document.createElement('canvas');
+            canvas.width = crop.w;
+            canvas.height = crop.h;
+            canvas.className = 'sprite-img';
 
+            // Always set CSS height to 50px, width auto (preserve aspect)
+            const cssH = 50;
+            const cssW = Math.round((crop.w / crop.h) * cssH);
+            canvas.style.height = cssH + 'px';
+            canvas.style.width = cssW + 'px';
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, crop.w, crop.h);
+            ctx.drawImage(
+                img,
+                crop.x, crop.y, crop.w, crop.h,
+                0, 0, crop.w, crop.h
+            );
+            wrapper.insertBefore(canvas, wrapper.firstChild);
+        };
+        img.onerror = () => {
+            // fallback: show nothing or error
+        };
+
+        // --- Frame label and input ---
         const frameLabel = document.createElement('label');
         frameLabel.textContent = 'Frames:';
         frameLabel.className = 'sprite-frame-label';
@@ -51,8 +74,18 @@ function renderSpriteGallery() {
         });
         wrapper.appendChild(frameInput);
 
+        // --- Edit button ---
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.textContent = 'Edit';
+        editBtn.className = 'button';
+        editBtn.style.marginTop = '4px';
+        editBtn.addEventListener('click', () => openSpriteEditor(idx));
+        wrapper.appendChild(editBtn);
+
+        // --- Delete button ---
         const delBtn = document.createElement('button');
-        delBtn.type = 'button'; // Prevent form submission
+        delBtn.type = 'button';
         delBtn.textContent = 'Delete';
         delBtn.className = 'button sprite-delete-btn';
         delBtn.addEventListener('click', () => {
@@ -180,4 +213,143 @@ form.addEventListener('submit', function(e) {
     }).then(() => {
         window.location.href = '/index.html';
     });
+});
+
+function clearAvatarsForCurrentChannel() {
+    const channel = channelNameInput.value;
+    localStorage.removeItem('avatars_' + channel);
+}
+
+enableDespawnInput.addEventListener('change', () => {
+    if (enableDespawnInput.checked) {
+        clearAvatarsForCurrentChannel();
+    }
+});
+
+useTwitchColorInput.addEventListener('change', () => {
+    clearAvatarsForCurrentChannel();
+});
+
+// Sprite Editor logic
+let editingSpriteIdx = null;
+let editorImage = null;
+let crop = { x: 0, y: 0, w: 100, h: 100 };
+let isDragging = false, dragStart = {};
+
+const spriteEditorModal = document.getElementById('spriteEditorModal');
+const spriteEditorCanvas = document.getElementById('spriteEditorCanvas');
+const editorFrames = document.getElementById('editorFrames');
+const editorFramesX = document.getElementById('editorFramesX');
+const editorFramesY = document.getElementById('editorFramesY');
+const editorDirection = document.getElementById('editorDirection');
+const saveSpriteEdit = document.getElementById('saveSpriteEdit');
+const closeSpriteEditor = document.getElementById('closeSpriteEditor');
+
+let dragStartCol = 0, dragStartRow = 0;
+
+function openSpriteEditor(idx) {
+    editingSpriteIdx = idx;
+    editorImage = new window.Image();
+    editorImage.src = uploadedSprites[idx].url;
+    editorImage.onload = () => {
+        crop = uploadedSprites[idx].crop
+            ? { ...uploadedSprites[idx].crop }
+            : { x: 0, y: 0, w: editorImage.width, h: editorImage.height };
+        editorFrames.value = uploadedSprites[idx].frames || 6;
+        editorFramesX.value = uploadedSprites[idx].framesX || uploadedSprites[idx].frames || 6;
+        editorFramesY.value = uploadedSprites[idx].framesY || 1;
+        editorDirection.value = uploadedSprites[idx].direction || 'horizontal';
+        drawEditorCanvas();
+        spriteEditorModal.classList.add('active');
+    };
+}
+
+function drawEditorCanvas() {
+    const ctx = spriteEditorCanvas.getContext('2d');
+    ctx.clearRect(0, 0, spriteEditorCanvas.width, spriteEditorCanvas.height);
+    // Fit image to canvas
+    const scale = Math.min(spriteEditorCanvas.width / editorImage.width, spriteEditorCanvas.height / editorImage.height, 1);
+    const offsetX = (spriteEditorCanvas.width - editorImage.width * scale) / 2;
+    const offsetY = (spriteEditorCanvas.height - editorImage.height * scale) / 2;
+    ctx.drawImage(editorImage, offsetX, offsetY, editorImage.width * scale, editorImage.height * scale);
+    // Draw crop rectangle
+    ctx.strokeStyle = '#b280ff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(
+        offsetX + crop.x * scale,
+        offsetY + crop.y * scale,
+        crop.w * scale,
+        crop.h * scale
+    );
+}
+
+spriteEditorCanvas.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    const rect = spriteEditorCanvas.getBoundingClientRect();
+    dragStart = {
+        x: (e.clientX - rect.left),
+        y: (e.clientY - rect.top)
+    };
+    const scale = Math.min(spriteEditorCanvas.width / editorImage.width, spriteEditorCanvas.height / editorImage.height, 1);
+    const offsetX = (spriteEditorCanvas.width - editorImage.width * scale) / 2;
+    const offsetY = (spriteEditorCanvas.height - editorImage.height * scale) / 2;
+    const framesX = parseInt(editorFramesX.value, 10) || 1;
+    const framesY = parseInt(editorFramesY.value, 10) || 1;
+    const frameW = Math.floor(editorImage.width / framesX);
+    const frameH = Math.floor(editorImage.height / framesY);
+    dragStartCol = Math.floor(((dragStart.x - offsetX) / scale) / frameW);
+    dragStartRow = Math.floor(((dragStart.y - offsetY) / scale) / frameH);
+    handleSnapCrop(e);
+});
+
+spriteEditorCanvas.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    handleSnapCrop(e);
+});
+spriteEditorCanvas.addEventListener('mouseup', () => { isDragging = false; });
+
+function handleSnapCrop(e) {
+    const rect = spriteEditorCanvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left);
+    const y = (e.clientY - rect.top);
+    const scale = Math.min(spriteEditorCanvas.width / editorImage.width, spriteEditorCanvas.height / editorImage.height, 1);
+    const offsetX = (spriteEditorCanvas.width - editorImage.width * scale) / 2;
+    const offsetY = (spriteEditorCanvas.height - editorImage.height * scale) / 2;
+    const framesX = parseInt(editorFramesX.value, 10) || 1;
+    const framesY = parseInt(editorFramesY.value, 10) || 1;
+    const frameW = Math.floor(editorImage.width / framesX);
+    const frameH = Math.floor(editorImage.height / framesY);
+
+    let col = Math.floor(((x - offsetX) / scale) / frameW);
+    let row = Math.floor(((y - offsetY) / scale) / frameH);
+    col = Math.max(0, Math.min(framesX - 1, col));
+    row = Math.max(0, Math.min(framesY - 1, row));
+    const startCol = Math.min(dragStartCol, col);
+    const endCol = Math.max(dragStartCol, col);
+    const startRow = Math.min(dragStartRow, row);
+    const endRow = Math.max(dragStartRow, row);
+
+    crop.x = startCol * frameW;
+    crop.y = startRow * frameH;
+    crop.w = (endCol - startCol + 1) * frameW;
+    crop.h = (endRow - startRow + 1) * frameH;
+
+    drawEditorCanvas();
+}
+
+closeSpriteEditor.addEventListener('click', () => {
+    spriteEditorModal.classList.remove('active');
+});
+
+saveSpriteEdit.addEventListener('click', () => {
+    if (editingSpriteIdx !== null) {
+        uploadedSprites[editingSpriteIdx].frames = parseInt(editorFrames.value, 10) || 6;
+        uploadedSprites[editingSpriteIdx].framesX = parseInt(editorFramesX.value, 10) || 1;
+        uploadedSprites[editingSpriteIdx].framesY = parseInt(editorFramesY.value, 10) || 1;
+        uploadedSprites[editingSpriteIdx].direction = editorDirection.value;
+        uploadedSprites[editingSpriteIdx].crop = { ...crop };
+        renderSpriteGallery();
+        saveSpritesConfig();
+        spriteEditorModal.classList.remove('active'); // <-- fix here
+    }
 });

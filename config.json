@@ -2,9 +2,9 @@
   "channelName": "pestily",
   "avatarColor": "#ffffff",
   "walkingSpeed": 1,
-  "useTwitchColor": true,
+  "useTwitchColor": false,
   "enableJumping": true,
-  "jumpVelocity": 10,
+  "jumpVelocity": 5,
   "gravity": 0.5,
   "jumpChance": 5,
   "enableMessageDisplay": true,
@@ -16,15 +16,33 @@
   "showShadows": true,
   "avatarOpacity": 1,
   "enableDespawn": true,
-  "despawnTime": 10,
+  "despawnTime": 60,
   "sprites": [
     {
-      "url": "/sprites/sprite_1764082168731.png",
-      "frames": 5
+      "url": "/sprites/sprite_1764146406148.png",
+      "frames": 4,
+      "framesX": 4,
+      "framesY": 4,
+      "direction": "horizontal",
+      "crop": {
+        "x": 0,
+        "y": 256,
+        "w": 256,
+        "h": 128
+      }
     },
     {
-      "url": "/sprites/sprite_1764083942959.png",
-      "frames": 8
+      "url": "/sprites/sprite_1764146853029.png",
+      "frames": 9,
+      "framesX": 9,
+      "framesY": 1,
+      "direction": "horizontal",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "w": 567,
+        "h": 55
+      }
     }
   ]
 }
