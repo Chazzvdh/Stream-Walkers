@@ -76,13 +76,19 @@ function getUserSettings() {
         messageChance: parseFloat(userSettings.messageChance) || 5,
         avatarSize: parseInt(userSettings.avatarSize, 10) || 64,
         nameFontSize: parseInt(userSettings.nameFontSize, 10) || 20,
+        nameFontFamily: userSettings.nameFontFamily || 'sans-serif',
+        nameFontWeight: userSettings.nameFontWeight || 'bold',
+        nameFontStyle: userSettings.nameFontStyle || 'normal',
         directionChangeChance: parseFloat(userSettings.directionChangeChance) || 1,
         muteMessages: !!userSettings.muteMessages,
         showShadows: userSettings.showShadows !== undefined ? !!userSettings.showShadows : true,
         avatarOpacity: parseFloat(userSettings.avatarOpacity) || 1,
         enableDespawn: !!userSettings.enableDespawn,
         despawnTime: parseInt(userSettings.despawnTime, 10) || 60,
-        messageDisappearTime: parseFloat(userSettings.messageDisappearTime) || 3
+        messageDisappearTime: parseFloat(userSettings.messageDisappearTime) || 3,
+        messageFontFamily: userSettings.messageFontFamily || 'sans-serif',
+        messageFontWeight: userSettings.messageFontWeight || 'normal',
+        messageFontStyle: userSettings.messageFontStyle || 'normal',
     };
 }
 
@@ -146,7 +152,12 @@ class Avatar {
         this.showShadows = settings.showShadows !== undefined ? settings.showShadows : true;
         this.avatarOpacity = settings.avatarOpacity !== undefined ? settings.avatarOpacity : 1;
         this.nameFontSize = settings.nameFontSize || 20;
-        this.muteMessages = !!settings.muteMessages;
+        this.nameFontFamily = settings.nameFontFamily || 'sans-serif';
+        this.nameFontWeight = settings.nameFontWeight || 'bold';
+        this.nameFontStyle = settings.nameFontStyle || 'normal';
+        this.messageFontFamily = settings.messageFontFamily || 'sans-serif';
+        this.messageFontWeight = settings.messageFontWeight || 'normal';
+        this.messageFontStyle = settings.messageFontStyle || 'normal';
         this.spawnTime = Date.now();
         this.messageDisappearTime = settings.messageDisappearTime || 3;
         // Sprite selection
@@ -283,7 +294,7 @@ class Avatar {
         // Draw username
         ctx.save();
         ctx.fillStyle = this.color;
-        ctx.font = `${this.nameFontSize}px sans-serif`;
+        ctx.font = `${this.nameFontStyle} ${this.nameFontWeight} ${this.nameFontSize}px ${this.nameFontFamily}`;
         ctx.textAlign = 'center';
         ctx.strokeStyle = 'rgba(0,0,0,1)';
         ctx.lineWidth = 2;
@@ -294,7 +305,7 @@ class Avatar {
         // Draw message if present and not muted
         if (this.message && this.messageTimer > 0 && !this.muteMessages) {
             ctx.save();
-            ctx.font = `${Math.round(this.nameFontSize * 0.8)}px sans-serif`;
+            ctx.font = `${this.messageFontStyle} ${this.messageFontWeight} ${Math.round(this.nameFontSize * 0.8)}px ${this.messageFontFamily}`;
             ctx.textAlign = 'center';
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 3;

@@ -18,6 +18,12 @@
   "enableDespawn": true,
   "despawnTime": 60,
   "messageDisappearTime": 10,
+  "nameFontFamily": "Arial, sans-serif",
+  "nameFontWeight": "normal",
+  "nameFontStyle": "normal",
+  "messageFontFamily": "Arial, sans-serif",
+  "messageFontWeight": "normal",
+  "messageFontStyle": "normal",
   "sprites": [
     {
       "url": "/sprites/sprite_1764146406148.png",

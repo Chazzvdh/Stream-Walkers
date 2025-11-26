@@ -23,6 +23,13 @@ const spriteInput = document.getElementById('spriteImage');
 const spriteGallery = document.getElementById('spriteGallery');
 let uploadedSprites = []; // {url, frames, framesX, framesY, direction, crop}
 
+const nameFontFamilyInput = document.getElementById('nameFontFamily');
+const nameFontWeightInput = document.getElementById('nameFontWeight');
+const nameFontStyleInput = document.getElementById('nameFontStyle');
+const messageFontFamilyInput = document.getElementById('messageFontFamily');
+const messageFontWeightInput = document.getElementById('messageFontWeight');
+const messageFontStyleInput = document.getElementById('messageFontStyle');
+
 function renderSpriteGallery() {
     spriteGallery.innerHTML = '';
     uploadedSprites.forEach((s, idx) => {
@@ -154,7 +161,13 @@ function getFormConfig() {
         avatarOpacity: parseFloat(avatarOpacityInput.value),
         enableDespawn: enableDespawnInput.checked,
         despawnTime: parseInt(despawnTimeInput.value, 10),
-        messageDisappearTime: parseFloat(messageDisappearTimeInput.value)
+        messageDisappearTime: parseFloat(messageDisappearTimeInput.value),
+        nameFontFamily: nameFontFamilyInput.value,
+        nameFontWeight: nameFontWeightInput.value,
+        nameFontStyle: nameFontStyleInput.value,
+        messageFontFamily: messageFontFamilyInput.value,
+        messageFontWeight: messageFontWeightInput.value,
+        messageFontStyle: messageFontStyleInput.value,
     };
 }
 
@@ -182,6 +195,12 @@ fetch('/config')
         despawnTimeInput.value = config.despawnTime || 60;
         messageDisappearTimeInput.value = config.messageDisappearTime || 3;
         uploadedSprites = Array.isArray(config.sprites) ? config.sprites : [];
+        nameFontFamilyInput.value = config.nameFontFamily || '';
+        nameFontWeightInput.value = config.nameFontWeight || 'normal';
+        nameFontStyleInput.value = config.nameFontStyle || 'normal';
+        messageFontFamilyInput.value = config.messageFontFamily || '';
+        messageFontWeightInput.value = config.messageFontWeight || 'normal';
+        messageFontStyleInput.value = config.messageFontStyle || 'normal';
         renderSpriteGallery();
     });
 

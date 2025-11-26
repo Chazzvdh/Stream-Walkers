@@ -70,12 +70,98 @@
         <h2>Chat & Display</h2>
         <label for="nameFontSize" class="label">Name Font Size (px):</label>
         <input type="number" id="nameFontSize" name="nameFontSize" class="input" min="8" max="48" step="1">
+
+        <label for="nameFontFamily" class="label">Name Font Family:</label>
+        <select id="nameFontFamily" name="nameFontFamily" class="input">
+            <option value="sans-serif">Sans-serif</option>
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="Verdana, Geneva, sans-serif">Verdana</option>
+            <option value="Tahoma, Geneva, sans-serif">Tahoma</option>
+            <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+            <option value="Impact, Charcoal, sans-serif">Impact</option>
+            <option value="serif">Serif</option>
+            <option value="Times New Roman, serif">Times New Roman</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="Palatino Linotype, Book Antiqua, Palatino, serif">Palatino</option>
+            <option value="monospace">Monospace</option>
+            <option value="Courier New, monospace">Courier New</option>
+            <option value="Lucida Console, Monaco, monospace">Lucida Console</option>
+            <option value="Comic Sans MS, cursive, sans-serif">Comic Sans MS</option>
+        </select>
+
+        <label for="nameFontWeight" class="label">Name Font Weight:</label>
+        <select id="nameFontWeight" name="nameFontWeight" class="input">
+            <option value="normal">Normal</option>
+            <option value="bold">Bold</option>
+            <option value="lighter">Lighter</option>
+            <option value="bolder">Bolder</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+            <option value="300">300</option>
+            <option value="400">400</option>
+            <option value="500">500</option>
+            <option value="600">600</option>
+            <option value="700">700</option>
+            <option value="800">800</option>
+            <option value="900">900</option>
+        </select>
+
+        <label for="nameFontStyle" class="label">Name Font Style:</label>
+        <select id="nameFontStyle" name="nameFontStyle" class="input">
+            <option value="normal">Normal</option>
+            <option value="italic">Italic</option>
+            <option value="oblique">Oblique</option>
+        </select>
+
         <label class="checkbox-label">
             <input type="checkbox" id="enableMessageDisplay" name="enableMessageDisplay">
             Enable Message Display Above Character
         </label>
         <label for="messageChance" class="label">Message Display Chance (%): min 0 - max 100</label>
         <input type="number" id="messageChance" name="messageChance" class="input" min="0" max="100" step="0.1">
+
+        <label for="messageFontFamily" class="label">Message Font Family:</label>
+        <select id="messageFontFamily" name="messageFontFamily" class="input">
+            <option value="sans-serif">Sans-serif</option>
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="Verdana, Geneva, sans-serif">Verdana</option>
+            <option value="Tahoma, Geneva, sans-serif">Tahoma</option>
+            <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+            <option value="Impact, Charcoal, sans-serif">Impact</option>
+            <option value="serif">Serif</option>
+            <option value="Times New Roman, serif">Times New Roman</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="Palatino Linotype, Book Antiqua, Palatino, serif">Palatino</option>
+            <option value="monospace">Monospace</option>
+            <option value="Courier New, monospace">Courier New</option>
+            <option value="Lucida Console, Monaco, monospace">Lucida Console</option>
+            <option value="Comic Sans MS, cursive, sans-serif">Comic Sans MS</option>
+        </select>
+
+        <label for="messageFontWeight" class="label">Message Font Weight:</label>
+        <select id="messageFontWeight" name="messageFontWeight" class="input">
+            <option value="normal">Normal</option>
+            <option value="bold">Bold</option>
+            <option value="lighter">Lighter</option>
+            <option value="bolder">Bolder</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+            <option value="300">300</option>
+            <option value="400">400</option>
+            <option value="500">500</option>
+            <option value="600">600</option>
+            <option value="700">700</option>
+            <option value="800">800</option>
+            <option value="900">900</option>
+        </select>
+
+        <label for="messageFontStyle" class="label">Message Font Style:</label>
+        <select id="messageFontStyle" name="messageFontStyle" class="input">
+            <option value="normal">Normal</option>
+            <option value="italic">Italic</option>
+            <option value="oblique">Oblique</option>
+        </select>
+
         <label for="messageDisappearTime" class="label">Message Disappear Time (seconds):</label>
         <input type="number" id="messageDisappearTime" name="messageDisappearTime" class="input" min="1" max="30" step="0.1">
         <label class="checkbox-label">
@@ -96,7 +182,7 @@
 
     <button type="submit" class="button">Save</button>
 </form>
-<p><a href="#">Back</a></p>
+<p><a href="index.html">Back to Main</a></p>
 
 <!-- Sprite Editor Modal -->
 <div id="spriteEditorModal" class="sprite-editor-modal">
