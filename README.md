@@ -2,6 +2,8 @@
 
 **Stream Walkers** is a Twitch chat overlay for OBS that visualizes chatters as animated avatars walking, jumping, and displaying messages on your stream.
 
+![20251127-2253-46 6606940](https://github.com/user-attachments/assets/81654ec1-1e99-435f-a2d1-db4f31dd53e5)
+
 ---
 
 ## License & Terms
