@@ -79,13 +79,37 @@ You can now install pre-made sprite packs (for example a "dino pack") without up
 Manifest example (packs/dino/manifest.json):
 ```json
 {
+  "id": "dino",
   "name": "Dino Pack",
   "description": "Cute dinosaur avatars",
   "preview": "/packs/dino/preview.png",
   "sprites": [
-    { "file": "dino_walk_1.png", "frames": 6, "framesX": 6, "framesY": 1, "frameSpeed": 6 }
+    {
+      "file": "doux.png",
+      "frames": 7,
+      "frameSpeed": 5,
+      "framesX": 24,
+      "framesY": 1,
+      "direction": "horizontal",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "w": 576,
+        "h": 24
+      },
+      "selectedFrames": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
+    }
   ]
 }
+
 ```
 
 ---
@@ -102,14 +126,14 @@ Manifest example (packs/dino/manifest.json):
 
 ```json
 {
-  "channelName": "pestily",
+  "channelName": "dougdoug",
   "avatarColor": "#ffffff",
-  "walkingSpeed": 1,
+  "walkingSpeed": 0.5,
   "useTwitchColor": true,
   "enableJumping": true,
-  "jumpVelocity": 10,
-  "gravity": 0.5,
-  "jumpChance": 5,
+  "jumpVelocity": 2,
+  "gravity": 1,
+  "jumpChance": 1,
   "enableMessageDisplay": true,
   "messageChance": 100,
   "avatarSize": 64,
@@ -119,7 +143,21 @@ Manifest example (packs/dino/manifest.json):
   "showShadows": true,
   "avatarOpacity": 1,
   "enableDespawn": true,
-  "despawnTime": 10
+  "despawnTime": 60,
+  "messageDisappearTime": 20,
+  "nameFontFamily": "sans-serif",
+  "nameFontWeight": "normal",
+  "nameFontStyle": "normal",
+  "nameStrokeStyle": "#000000",
+  "nameLineWidth": 2,
+  "messageFontFamily": "Tahoma, Geneva, sans-serif",
+  "messageFontWeight": "normal",
+  "messageFontStyle": "normal",
+  "messageStrokeStyle": "#ffffff",
+  "messageLineWidth": 5,
+  "messageFillStyle": "#000000",
+  "defaultFrameSpeed": 5,
+  "sprites": []
 }
 ```
 
