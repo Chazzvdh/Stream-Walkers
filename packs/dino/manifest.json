@@ -5,13 +5,96 @@
   "preview": "/packs/dino/preview.png",
   "sprites": [
     {
-      "file": "dino_walk_1.png",
-      "frames": 6,
-      "framesX": 6,
-      "framesY": 1,
+      "file": "doux.png",
+      "frames": 7,
       "frameSpeed": 8,
-      "direction": "horizontal"
+      "framesX": 24,
+      "framesY": 1,
+      "direction": "horizontal",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "w": 576,
+        "h": 24
+      },
+      "selectedFrames": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
+    },
+    {
+      "file": "mort.png",
+      "frames": 7,
+      "frameSpeed": 8,
+      "framesX": 24,
+      "framesY": 1,
+      "direction": "horizontal",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "w": 576,
+        "h": 24
+      },
+      "selectedFrames": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
+    },
+    {
+      "file": "tard.png",
+      "frames": 7,
+      "frameSpeed": 8,
+      "framesX": 24,
+      "framesY": 1,
+      "direction": "horizontal",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "w": 576,
+        "h": 24
+      },
+      "selectedFrames": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
+    },
+    {
+      "file": "vita.png",
+      "frames": 7,
+      "frameSpeed": 8,
+      "framesX": 24,
+      "framesY": 1,
+      "direction": "horizontal",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "w": 576,
+        "h": 24
+      },
+      "selectedFrames": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
     }
   ]
 }
-
