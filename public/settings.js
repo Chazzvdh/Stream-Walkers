@@ -404,6 +404,8 @@ const editorFramesLabel = document.getElementById('editorFramesLabel');
 function openSpriteEditor(idx) {
     editingSpriteIdx = idx;
     editorImage = new window.Image();
+    // allow cross-origin sprites if needed
+    editorImage.crossOrigin = 'anonymous';
     editorImage.src = uploadedSprites[idx].url;
     editorImage.onload = () => {
         crop = uploadedSprites[idx].crop
@@ -412,20 +414,38 @@ function openSpriteEditor(idx) {
         editorFramesX.value = uploadedSprites[idx].framesX || uploadedSprites[idx].frames || 6;
         editorFramesY.value = uploadedSprites[idx].framesY || 1;
         editorDirection.value = uploadedSprites[idx].direction || 'horizontal';
-        // Load selectedFrames or default to NONE (empty) so nothing is pre-selected
-        const framesX = parseInt(editorFramesX.value, 10) || 1;
-        const framesY = parseInt(editorFramesY.value, 10) || 1;
         if (Array.isArray(uploadedSprites[idx].selectedFrames)) {
             selectedFrames = [...uploadedSprites[idx].selectedFrames];
         } else {
-            // Default: none selected (user will select cells manually)
-            selectedFrames = [];
+            selectedFrames = []; // start with none selected
         }
-        // ensure DPR for editor canvas then draw
-        ensureCanvasDPR(spriteEditorCanvas);
-        drawEditorCanvas();
+
+        // Show modal first so the canvas has layout (clientWidth/clientHeight)
         spriteEditorModal.classList.add('active');
+
+        // --- Ensure the editor canvas is visually larger before DPR sizing/drawing ---
+        // This ensures clientWidth/clientHeight are already large so ensureCanvasDPR uses the intended size.
+        spriteEditorCanvas.style.width = '900px';
+        spriteEditorCanvas.style.height = '480px';
+
+        // On next frame, ensure DPR/backing store is correct and draw.
+        // This guarantees the canvas has non-zero clientWidth/clientHeight.
+        requestAnimationFrame(() => {
+            ensureCanvasDPR(spriteEditorCanvas);
+            drawEditorCanvas();
+        });
     };
+}
+
+// Add close handler so the ✖ button works reliably
+if (closeSpriteEditor) {
+    closeSpriteEditor.addEventListener('click', () => {
+        spriteEditorModal.classList.remove('active');
+        // clear editing state (optional)
+        editingSpriteIdx = null;
+        editorImage = null;
+        selectedFrames = [];
+    });
 }
 
 // --- Auto-update sprite editor preview on input changes ---
@@ -597,6 +617,7 @@ spriteEditorCanvas.addEventListener('mouseleave', (e) => {
 function openSpriteEditor(idx) {
     editingSpriteIdx = idx;
     editorImage = new window.Image();
+    editorImage.crossOrigin = 'anonymous';
     editorImage.src = uploadedSprites[idx].url;
     editorImage.onload = () => {
         crop = uploadedSprites[idx].crop
@@ -608,12 +629,23 @@ function openSpriteEditor(idx) {
         if (Array.isArray(uploadedSprites[idx].selectedFrames)) {
             selectedFrames = [...uploadedSprites[idx].selectedFrames];
         } else {
-            selectedFrames = [];
+            selectedFrames = []; // start with none selected
         }
-        // ensure DPR for editor canvas then draw
-        ensureCanvasDPR(spriteEditorCanvas);
-        drawEditorCanvas();
+
+        // Show modal first so the canvas has layout (clientWidth/clientHeight)
         spriteEditorModal.classList.add('active');
+
+        // --- Ensure the editor canvas is visually larger before DPR sizing/drawing ---
+        // This ensures clientWidth/clientHeight are already large so ensureCanvasDPR uses the intended size.
+        spriteEditorCanvas.style.width = '900px';
+        spriteEditorCanvas.style.height = '480px';
+
+        // On next frame, ensure DPR/backing store is correct and draw.
+        // This guarantees the canvas has non-zero clientWidth/clientHeight.
+        requestAnimationFrame(() => {
+            ensureCanvasDPR(spriteEditorCanvas);
+            drawEditorCanvas();
+        });
     };
 }
 
@@ -725,36 +757,151 @@ if (refreshPacksBtn) {
 // Load packs initially
 loadSpritePacks();
 
-// --- Add Save & Close handlers for sprite editor ---
-// Save edits back into uploadedSprites and persist
-saveSpriteEdit.addEventListener('click', () => {
-    if (editingSpriteIdx === null) return;
-    const framesX = parseInt(editorFramesX.value, 10) || 1;
-    const framesY = parseInt(editorFramesY.value, 10) || 1;
-    // clamp selectedFrames to valid range and keep order
-    const maxIdx = framesX * framesY;
-    selectedFrames = selectedFrames.filter(i => Number.isInteger(i) && i >= 0 && i < maxIdx);
-    selectedFrames.sort((a, b) => a - b);
+// --- NEW: Search / Filter functionality ---
+function debounce(fn, wait = 150) {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), wait);
+    };
+}
 
-    const s = uploadedSprites[editingSpriteIdx] || {};
-    s.framesX = framesX;
-    s.framesY = framesY;
-    s.direction = editorDirection.value || 'horizontal';
-    s.crop = { ...crop };
-    s.selectedFrames = [...selectedFrames];
-    // ensure frames count matches selection (fallback to full grid if none selected)
-    s.frames = selectedFrames.length > 0 ? selectedFrames.length : (framesX * framesY);
-    uploadedSprites[editingSpriteIdx] = s;
+function textMatches(el, q) {
+    if (!el || !q) return false;
+    return (el.textContent || '').toLowerCase().indexOf(q) !== -1;
+}
 
-    renderSpriteGallery();
-    saveSpritesConfig();
-    spriteEditorModal.classList.remove('active');
-    editingSpriteIdx = null;
-});
+function performSearch(rawQuery) {
+    const q = (rawQuery || '').trim().toLowerCase();
+    // Categories: show if any label/heading/desc inside matches
+    document.querySelectorAll('.category').forEach(cat => {
+        if (!q) {
+            cat.style.display = '';
+            return;
+        }
+        const nodesToCheck = Array.from(cat.querySelectorAll('h2, .label, .setting-desc, .info-icon, .input, select, option'));
+        const matches = nodesToCheck.some(n => textMatches(n, q));
+        cat.style.display = matches ? '' : 'none';
+    });
 
-// Close button: just hide modal and clear editing index (discarding unsaved changes)
-closeSpriteEditor.addEventListener('click', () => {
-    spriteEditorModal.classList.remove('active');
-    editingSpriteIdx = null;
-});
+    // Sprite gallery: filter wrappers
+    document.querySelectorAll('#spriteGallery .sprite-wrapper').forEach(w => {
+        if (!q) {
+            w.style.display = '';
+            return;
+        }
+        const match = textMatches(w, q) || (w.querySelector('.sprite-frame-label') && textMatches(w.querySelector('.sprite-frame-label'), q));
+        w.style.display = match ? '' : 'none';
+    });
 
+    // Sprite packs: filter pack cards
+    document.querySelectorAll('#spritePacks .sprite-wrapper').forEach(card => {
+        if (!q) {
+            card.style.display = '';
+            return;
+        }
+        const match = textMatches(card, q) || textMatches(card.querySelector('div'), q);
+        card.style.display = match ? '' : 'none';
+    });
+}
+
+// Hook search input with debounce
+if (settingsSearch) {
+    const debounced = debounce((e) => performSearch(e.target.value), 120);
+    settingsSearch.addEventListener('input', debounced);
+    // support pressing Esc to clear
+    settingsSearch.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            settingsSearch.value = '';
+            performSearch('');
+        }
+    });
+}
+
+// --- Additions end ---
+
+// --- Ensure save button commits editor state back to uploadedSprites ---
+function clampSelectedFramesForGrid(sel, framesX, framesY) {
+    const max = Math.max(0, framesX * framesY);
+    return Array.from(new Set((sel || []).map(n => parseInt(n, 10)).filter(n => Number.isFinite(n) && n >= 0 && n < max))).sort((a,b)=>a-b);
+}
+
+if (saveSpriteEdit) {
+    saveSpriteEdit.addEventListener('click', () => {
+        if (editingSpriteIdx == null) return;
+        const framesX = Math.max(1, parseInt(editorFramesX.value, 10) || 1);
+        const framesY = Math.max(1, parseInt(editorFramesY.value, 10) || 1);
+        const direction = editorDirection.value || 'horizontal';
+
+        // Clamp/filter selectedFrames to valid range
+        const validSelected = clampSelectedFramesForGrid(selectedFrames, framesX, framesY);
+
+        // Prepare values to save
+        const spriteEntry = uploadedSprites[editingSpriteIdx] || {};
+        spriteEntry.framesX = framesX;
+        spriteEntry.framesY = framesY;
+        spriteEntry.direction = direction;
+        spriteEntry.crop = { ...crop };
+        // Preserve frameSpeed if present
+        if (spriteEntry.frameSpeed == null) spriteEntry.frameSpeed = defaultFrameSpeed;
+        // Save selectedFrames (or undefined if empty)
+        spriteEntry.selectedFrames = validSelected.length ? validSelected : [];
+
+        // If selected frames exist, set frames to the selected count, otherwise set to full grid count
+        spriteEntry.frames = validSelected.length ? validSelected.length : (framesX * framesY);
+
+        // write back
+        uploadedSprites[editingSpriteIdx] = spriteEntry;
+
+        // persist and refresh
+        saveSpritesConfig();
+        renderSpriteGallery();
+
+        // close the editor modal and reset local editor state
+        spriteEditorModal.classList.remove('active');
+        editingSpriteIdx = null;
+        editorImage = null;
+        selectedFrames = [];
+    });
+}
+
+// --- Delete All Sprites handler ---
+const deleteAllSpritesBtn = document.getElementById('deleteAllSprites');
+if (deleteAllSpritesBtn) {
+    deleteAllSpritesBtn.addEventListener('click', async () => {
+        if (!confirm('Delete ALL uploaded sprites and installed pack sprites from the sprites list? (This will remove uploaded files in public/sprites and remove any pack-installed entries from your sprites list)')) return;
+        deleteAllSpritesBtn.disabled = true;
+        const prevText = deleteAllSpritesBtn.textContent;
+        deleteAllSpritesBtn.textContent = 'Deleting...';
+        try {
+            const r = await fetch('/delete-all-sprites', { method: 'POST' });
+            const data = await r.json();
+            if (r.ok && data && data.success) {
+                // Remove sprites referencing /sprites/ OR /packs/ from UI state
+                uploadedSprites = uploadedSprites.filter(s => {
+                    if (!s || !s.url) return true;
+                    const u = String(s.url);
+                    return !(u.includes('/sprites/') || u.includes('/packs/'));
+                });
+                renderSpriteGallery();
+                // Persist updated config back to server (server already updated, but keep UI in sync)
+                saveSpritesConfig();
+                deleteAllSpritesBtn.textContent = 'Deleted';
+                setTimeout(() => {
+                    deleteAllSpritesBtn.disabled = false;
+                    deleteAllSpritesBtn.textContent = prevText;
+                }, 900);
+            } else {
+                console.error('Server failed to delete sprites', data);
+                alert('Failed to delete sprites on server.');
+                deleteAllSpritesBtn.disabled = false;
+                deleteAllSpritesBtn.textContent = prevText;
+            }
+        } catch (e) {
+            console.error('Error deleting sprites', e);
+            alert('Error deleting sprites (see console).');
+            deleteAllSpritesBtn.disabled = false;
+            deleteAllSpritesBtn.textContent = prevText;
+        }
+    });
+}

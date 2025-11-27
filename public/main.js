@@ -301,7 +301,6 @@ class Avatar {
         // --- grid support ---
         let framesX = spriteConfig.framesX || this.spriteFrames || 1;
         let framesY = spriteConfig.framesY || 1;
-        let totalFrames = framesX * framesY;
 
         // --- Use selectedFrames for animation order ---
         let frameIdx = this.frameX % this.spriteFrames;

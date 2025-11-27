@@ -116,18 +116,46 @@ app.post('/delete-sprite', (req, res) => {
 });
 
 app.post('/delete-all-sprites', (req, res) => {
-    const spritesDir = path.join(__dirname, 'public', 'sprites');
-    fs.readdir(spritesDir, (err, files) => {
-        if (err) return res.json({ success: false });
-        let pending = files.length;
-        if (!pending) return res.json({ success: true });
+    try {
+        const spritesDir = path.join(__dirname, 'public', 'sprites');
+        if (!fs.existsSync(spritesDir)) {
+            // nothing to delete
+            if (!Array.isArray(config.sprites)) config.sprites = [];
+            fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+            return res.json({ success: true, deleted: 0, removedFromConfig: 0 });
+        }
+
+        // delete image files in the sprites folder (only user-uploaded sprites)
+        const files = fs.readdirSync(spritesDir).filter(f => /\.(png|jpe?g|gif|webp|bmp)$/i.test(f));
+        let deleted = 0;
         files.forEach(file => {
-            fs.unlink(path.join(spritesDir, file), () => {
-                pending -= 1;
-                if (!pending) res.json({ success: true });
-            });
+            try {
+                fs.unlinkSync(path.join(spritesDir, file));
+                deleted++;
+            } catch (e) {
+                // ignore individual failures but log
+                console.warn('Failed to delete sprite file', file, e);
+            }
         });
-    });
+
+        // remove any config.sprites entries that reference the /sprites/ folder OR installed packs (/packs/)
+        if (!Array.isArray(config.sprites)) config.sprites = [];
+        const before = config.sprites.length;
+        config.sprites = config.sprites.filter(s => {
+            if (!s || !s.url) return true;
+            const u = String(s.url);
+            // keep entries that are NOT in /sprites/ and NOT in /packs/
+            return !(u.includes('/sprites/') || u.includes('/packs/'));
+        });
+        const removedFromConfig = before - config.sprites.length;
+
+        // persist config
+        fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+        res.json({ success: true, deleted, removedFromConfig });
+    } catch (err) {
+        console.error('Failed to delete all sprites', err);
+        res.status(500).json({ success: false, error: 'Failed to delete sprites' });
+    }
 });
 
 // --- New: list available sprite packs (reads packs/<id>/manifest.json) ---

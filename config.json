@@ -1,5 +1,5 @@
 {
-  "channelName": "ludwig",
+  "channelName": "dougdoug",
   "avatarColor": "#ffffff",
   "walkingSpeed": 0.5,
   "useTwitchColor": true,
@@ -34,7 +34,7 @@
     {
       "url": "/packs/dino/doux.png",
       "frames": 7,
-      "frameSpeed": 8,
+      "frameSpeed": 5,
       "framesX": 24,
       "framesY": 1,
       "direction": "horizontal",
@@ -57,7 +57,7 @@
     {
       "url": "/packs/dino/mort.png",
       "frames": 7,
-      "frameSpeed": 8,
+      "frameSpeed": 5,
       "framesX": 24,
       "framesY": 1,
       "direction": "horizontal",
@@ -80,7 +80,7 @@
     {
       "url": "/packs/dino/tard.png",
       "frames": 7,
-      "frameSpeed": 8,
+      "frameSpeed": 5,
       "framesX": 24,
       "framesY": 1,
       "direction": "horizontal",
@@ -103,7 +103,7 @@
     {
       "url": "/packs/dino/vita.png",
       "frames": 7,
-      "frameSpeed": 8,
+      "frameSpeed": 5,
       "framesX": 24,
       "framesY": 1,
       "direction": "horizontal",
