@@ -5,6 +5,7 @@ const socket = io();
 const avatars = [];
 let spriteImages = [];
 let spriteFramesArr = [];
+let spriteFrameSpeeds = [];
 let userSettings = null;
 
 async function loadConfig() {
@@ -17,6 +18,9 @@ async function loadConfig() {
             return img;
         });
         spriteFramesArr = userSettings.sprites.map(s => s.frames || 6);
+        spriteFrameSpeeds = userSettings.sprites.map(s =>
+            s.frameSpeed != null ? s.frameSpeed : (userSettings.defaultFrameSpeed || 10)
+        );
         // Wait for all images to load
         await Promise.all(spriteImages.map(img => new Promise(r => {
             if (img.complete) r();
@@ -29,6 +33,7 @@ async function loadConfig() {
         img.src = userSettings.spriteUrl;
         spriteImages = [img];
         spriteFramesArr = [userSettings.spriteFrames || 6];
+        spriteFrameSpeeds = [userSettings.defaultFrameSpeed || 10];
         img.onload = startApp;
     }
 }
@@ -178,6 +183,8 @@ class Avatar {
         }
         this.spriteImage = spriteImages[this.spriteIdx];
         this.spriteFrames = spriteFramesArr[this.spriteIdx];
+        this.spriteFrameSpeed = spriteFrameSpeeds[this.spriteIdx] || (userSettings.defaultFrameSpeed || 10);
+        this.frameInterval = Math.max(1, Math.floor(60 / this.spriteFrameSpeed));
     }
 
     setMessage(msg) {
@@ -207,7 +214,7 @@ class Avatar {
         if (this.x < 0 || this.x + this.size > canvas.width) {
             this.dx *= -1;
         }
-        if (this.gameFrame % Math.max(1, Math.floor(60 / this.spriteFrames)) === 0) {
+        if (this.gameFrame % this.frameInterval === 0) {
             this.frameX = (this.frameX + 1) % this.spriteFrames;
         }
         if (this.messageTimer > 0) {

@@ -223,6 +223,56 @@ a {
     justify-content: center;
 }
 
+.setting-desc {
+    color: var(--input-border);
+    font-size: 0.95em;
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.info-icon {
+    display: inline-block;
+    margin-left: 6px;
+    color: #b18fff;
+    cursor: pointer;
+    font-style: normal;
+    font-size: 1em;
+    position: relative;
+    vertical-align: middle;
+}
+
+.info-icon::after {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    left: 50%;
+    bottom: 120%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.98em;
+    white-space: pre-line;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 100;
+    min-width: 180px;
+    max-width: 320px;
+    box-shadow: 0 2px 12px #0008;
+}
+
+.info-icon:hover::after,
+.info-icon:focus::after {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.info-icon:active {
+    color: #9366ff;
+}
+
 @media (max-width: 700px) {
     .body {
         padding: 10px;

@@ -21,7 +21,8 @@ const messageDisappearTimeInput = document.getElementById('messageDisappearTime'
 
 const spriteInput = document.getElementById('spriteImage');
 const spriteGallery = document.getElementById('spriteGallery');
-let uploadedSprites = []; // {url, frames, framesX, framesY, direction, crop}
+let uploadedSprites = []; // {url, frames, framesX, framesY, direction, crop, frameSpeed}
+let defaultFrameSpeed = 10;
 
 const nameFontFamilyInput = document.getElementById('nameFontFamily');
 const nameFontWeightInput = document.getElementById('nameFontWeight');
@@ -81,6 +82,25 @@ function renderSpriteGallery() {
         });
         wrapper.appendChild(frameInput);
 
+        // --- Frame speed label and input ---
+        const frameSpeedLabel = document.createElement('label');
+        frameSpeedLabel.textContent = 'Frame Speed:';
+        frameSpeedLabel.className = 'sprite-frame-label';
+        wrapper.appendChild(frameSpeedLabel);
+
+        const frameSpeedInput = document.createElement('input');
+        frameSpeedInput.type = 'number';
+        frameSpeedInput.min = 1;
+        frameSpeedInput.max = 60;
+        frameSpeedInput.value = s.frameSpeed != null ? s.frameSpeed : defaultFrameSpeed;
+        frameSpeedInput.className = 'sprite-frame-input';
+        frameSpeedInput.style.width = '60px';
+        frameSpeedInput.addEventListener('change', () => {
+            uploadedSprites[idx].frameSpeed = parseInt(frameSpeedInput.value, 10) || defaultFrameSpeed;
+            saveSpritesConfig();
+        });
+        wrapper.appendChild(frameSpeedInput);
+
         // --- Edit and Delete buttons side by side ---
         const btnRow = document.createElement('div');
         btnRow.className = 'sprite-btn-row';
@@ -115,20 +135,16 @@ function renderSpriteGallery() {
     });
 }
 
-// Delete All Sprites button logic
-const deleteAllBtn = document.getElementById('deleteAllSprites');
-if (deleteAllBtn) {
-    deleteAllBtn.addEventListener('click', () => {
-        if (!confirm('Are you sure you want to delete all sprites?')) return;
-        fetch('/delete-all-sprites', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    uploadedSprites = [];
-                    renderSpriteGallery();
-                    saveSpritesConfig();
-                }
-            });
+// --- Set All Frame Speed Logic ---
+const setAllFrameSpeedInput = document.getElementById('setAllFrameSpeed');
+const applyAllFrameSpeedBtn = document.getElementById('applyAllFrameSpeed');
+if (applyAllFrameSpeedBtn && setAllFrameSpeedInput) {
+    applyAllFrameSpeedBtn.addEventListener('click', () => {
+        const val = parseInt(setAllFrameSpeedInput.value, 10) || 10;
+        defaultFrameSpeed = val;
+        uploadedSprites.forEach(s => { s.frameSpeed = val; });
+        renderSpriteGallery();
+        saveSpritesConfig();
     });
 }
 
@@ -138,6 +154,7 @@ function saveSpritesConfig() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             ...getFormConfig(),
+            defaultFrameSpeed,
             sprites: uploadedSprites
         })
     });
@@ -202,17 +219,8 @@ fetch('/config')
         despawnTimeInput.value = config.despawnTime || 60;
         messageDisappearTimeInput.value = config.messageDisappearTime || 3;
         uploadedSprites = Array.isArray(config.sprites) ? config.sprites : [];
-        nameFontFamilyInput.value = config.nameFontFamily || '';
-        nameFontWeightInput.value = config.nameFontWeight || 'normal';
-        nameFontStyleInput.value = config.nameFontStyle || 'normal';
-        nameStrokeStyleInput.value = config.nameStrokeStyle || '#000000';
-        nameLineWidthInput.value = config.nameLineWidth != null ? config.nameLineWidth : 2;
-        messageFontFamilyInput.value = config.messageFontFamily || '';
-        messageFontWeightInput.value = config.messageFontWeight || 'normal';
-        messageFontStyleInput.value = config.messageFontStyle || 'normal';
-        messageStrokeStyleInput.value = config.messageStrokeStyle || '#000000';
-        messageLineWidthInput.value = config.messageLineWidth != null ? config.messageLineWidth : 3;
-        messageFillStyleInput.value = config.messageFillStyle || '#ffffff';
+        defaultFrameSpeed = config.defaultFrameSpeed != null ? config.defaultFrameSpeed : 10;
+        if (setAllFrameSpeedInput) setAllFrameSpeedInput.value = defaultFrameSpeed;
         renderSpriteGallery();
     });
 
@@ -226,7 +234,7 @@ spriteInput.addEventListener('change', function() {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    uploadedSprites.push({ url: data.url, frames: 6 });
+                    uploadedSprites.push({ url: data.url, frames: 6, frameSpeed: defaultFrameSpeed });
                     renderSpriteGallery();
                     saveSpritesConfig();
                 }
@@ -238,6 +246,7 @@ form.addEventListener('submit', function(e) {
     e.preventDefault();
     const newConfig = {
         ...getFormConfig(),
+        defaultFrameSpeed,
         sprites: uploadedSprites
     };
     fetch('/set-config', {
