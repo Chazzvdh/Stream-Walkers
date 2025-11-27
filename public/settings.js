@@ -199,25 +199,38 @@ function getFormConfig() {
 fetch('/config')
     .then(res => res.json())
     .then(config => {
-        colorInput.value = config.avatarColor || '#ff0000';
-        speedInput.value = config.walkingSpeed || '1';
+        colorInput.value = typeof config.avatarColor === 'string' ? config.avatarColor : '#ff0000';
+        speedInput.value = config.walkingSpeed != null ? config.walkingSpeed : '1';
         useTwitchColorInput.checked = !!config.useTwitchColor;
         enableJumpingInput.checked = !!config.enableJumping;
-        jumpVelocityInput.value = config.jumpVelocity || '12';
-        gravityInput.value = config.gravity || '1';
-        jumpChanceInput.value = config.jumpChance || '1';
+        jumpVelocityInput.value = config.jumpVelocity != null ? config.jumpVelocity : '12';
+        gravityInput.value = config.gravity != null ? config.gravity : '1';
+        jumpChanceInput.value = config.jumpChance != null ? config.jumpChance : '1';
         enableMessageDisplayInput.checked = !!config.enableMessageDisplay;
-        messageChanceInput.value = config.messageChance || '5';
-        channelNameInput.value = config.channelName || 'ohnepixel';
-        avatarSizeInput.value = config.avatarSize || 64;
-        nameFontSizeInput.value = config.nameFontSize || 20;
-        directionChangeChanceInput.value = config.directionChangeChance || 1;
+        messageChanceInput.value = config.messageChance != null ? config.messageChance : '5';
+        channelNameInput.value = typeof config.channelName === 'string' ? config.channelName : 'ohnepixel';
+        avatarSizeInput.value = config.avatarSize != null ? config.avatarSize : 64;
+        nameFontSizeInput.value = config.nameFontSize != null ? config.nameFontSize : 20;
+        directionChangeChanceInput.value = config.directionChangeChance != null ? config.directionChangeChance : 1;
         muteMessagesInput.checked = !!config.muteMessages;
-        showShadowsInput.checked = !!config.showShadows;
-        avatarOpacityInput.value = config.avatarOpacity || 1;
+        showShadowsInput.checked = config.showShadows !== undefined ? !!config.showShadows : true;
+        avatarOpacityInput.value = config.avatarOpacity != null ? config.avatarOpacity : 1;
         enableDespawnInput.checked = !!config.enableDespawn;
-        despawnTimeInput.value = config.despawnTime || 60;
-        messageDisappearTimeInput.value = config.messageDisappearTime || 3;
+        despawnTimeInput.value = config.despawnTime != null ? config.despawnTime : 60;
+        messageDisappearTimeInput.value = config.messageDisappearTime != null ? config.messageDisappearTime : 3;
+
+        // Font and style settings
+        nameFontFamilyInput.value = config.nameFontFamily || 'sans-serif';
+        nameFontWeightInput.value = config.nameFontWeight || 'normal';
+        nameFontStyleInput.value = config.nameFontStyle || 'normal';
+        nameStrokeStyleInput.value = typeof config.nameStrokeStyle === 'string' ? config.nameStrokeStyle : '#000000';
+        nameLineWidthInput.value = config.nameLineWidth != null ? config.nameLineWidth : 2;
+        messageFontFamilyInput.value = config.messageFontFamily || 'sans-serif';
+        messageFontWeightInput.value = config.messageFontWeight || 'normal';
+        messageFontStyleInput.value = config.messageFontStyle || 'normal';
+        messageStrokeStyleInput.value = typeof config.messageStrokeStyle === 'string' ? config.messageStrokeStyle : '#ffffff';
+        messageLineWidthInput.value = config.messageLineWidth != null ? config.messageLineWidth : 3;
+        messageFillStyleInput.value = typeof config.messageFillStyle === 'string' ? config.messageFillStyle : '#000000';
         uploadedSprites = Array.isArray(config.sprites) ? config.sprites : [];
         defaultFrameSpeed = config.defaultFrameSpeed != null ? config.defaultFrameSpeed : 10;
         if (setAllFrameSpeedInput) setAllFrameSpeedInput.value = defaultFrameSpeed;

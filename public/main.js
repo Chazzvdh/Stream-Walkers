@@ -154,7 +154,7 @@ class Avatar {
         this.gameFrame = 0;
         this.isJumping = false;
         this.jumpVelocity = 0;
-        this.gravity = settings.gravity ?? 1;
+        this.gravity = (settings.gravity ?? 1) * 0.1;
         this.enableJumping = settings.enableJumping ?? true;
         this.userJumpVelocity = settings.jumpVelocity ?? 12;
         this.jumpChance = settings.jumpChance ?? 0.001;
