@@ -36,6 +36,31 @@ const messageStrokeStyleInput = document.getElementById('messageStrokeStyle');
 const messageLineWidthInput = document.getElementById('messageLineWidth');
 const messageFillStyleInput = document.getElementById('messageFillStyle');
 
+// Helper: ensure a canvas has a DPR-scaled backing store and ctx transform
+function ensureCanvasDPR(c) {
+    const dpr = window.devicePixelRatio || 1;
+    // Use computed CSS sizes; fallback to element attributes if not set
+    const cssW = c.clientWidth || parseInt(c.style.width) || c.width || 300;
+    const cssH = c.clientHeight || parseInt(c.style.height) || c.height || 150;
+    c.style.width = cssW + 'px';
+    c.style.height = cssH + 'px';
+    c.width = Math.max(1, Math.round(cssW * dpr));
+    c.height = Math.max(1, Math.round(cssH * dpr));
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // --- Disable smoothing so downscaled frames stay sharp (nearest-neighbor) ---
+    try {
+        ctx.imageSmoothingEnabled = false;
+        if (typeof ctx.imageSmoothingQuality !== 'undefined') {
+            ctx.imageSmoothingQuality = 'low';
+        }
+    } catch (e) {}
+
+    return ctx;
+}
+
+// --- renderSpriteGallery changes: render small CSS-sized preview canvases and draw scaled frames ---
 function renderSpriteGallery() {
     spriteGallery.innerHTML = '';
     uploadedSprites.forEach((s, idx) => {
@@ -46,18 +71,36 @@ function renderSpriteGallery() {
         img.src = s.url;
         img.onload = () => {
             const crop = s.crop || { x: 0, y: 0, w: img.width, h: img.height };
-            const canvas = document.createElement('canvas');
-            canvas.width = crop.w;
-            canvas.height = crop.h;
-            canvas.className = 'sprite-img';
+            const framesX = s.framesX || s.frames || 1;
+            const framesY = s.framesY || 1;
+            const frameW = crop.w / framesX;
+            const frameH = crop.h / framesY;
 
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, crop.w, crop.h);
+            // fixed display height for previews (CSS pixels)
+            const displayH = 50;
+            const aspect = (frameW && frameH) ? (frameW / frameH) : 1;
+            const displayW = Math.max(30, Math.round(displayH * aspect));
+
+            const canvas = document.createElement('canvas');
+            canvas.className = 'sprite-img';
+            // set CSS size then scale backing store via ensureCanvasDPR
+            canvas.style.width = displayW + 'px';
+            canvas.style.height = displayH + 'px';
+            const ctx = ensureCanvasDPR(canvas);
+
+            // draw the first frame cropped and scaled into the small preview
+            // ensure no smoothing for crisp preview
+            try {
+                ctx.imageSmoothingEnabled = false;
+                if (typeof ctx.imageSmoothingQuality !== 'undefined') ctx.imageSmoothingQuality = 'low';
+            } catch (e) {}
+            ctx.clearRect(0, 0, displayW, displayH);
             ctx.drawImage(
                 img,
-                crop.x, crop.y, crop.w, crop.h,
-                0, 0, crop.w, crop.h
+                crop.x, crop.y, frameW, frameH,
+                0, 0, displayW, displayH
             );
+
             wrapper.insertBefore(canvas, wrapper.firstChild);
         };
         img.onerror = () => {
@@ -73,7 +116,7 @@ function renderSpriteGallery() {
         const frameInput = document.createElement('input');
         frameInput.type = 'number';
         frameInput.min = 1;
-        frameInput.max = 20;
+        frameInput.max = 100;
         frameInput.value = s.frames || 6;
         frameInput.className = 'sprite-frame-input';
         frameInput.addEventListener('change', () => {
@@ -81,6 +124,42 @@ function renderSpriteGallery() {
             saveSpritesConfig();
         });
         wrapper.appendChild(frameInput);
+
+        // --- Frames X ---
+        const frameXLabel = document.createElement('label');
+        frameXLabel.textContent = 'Frames X:';
+        frameXLabel.className = 'sprite-frame-label';
+        wrapper.appendChild(frameXLabel);
+
+        const frameXInput = document.createElement('input');
+        frameXInput.type = 'number';
+        frameXInput.min = 1;
+        frameXInput.max = 100;
+        frameXInput.value = s.framesX || s.frames || 1;
+        frameXInput.className = 'sprite-frame-input';
+        frameXInput.addEventListener('change', () => {
+            uploadedSprites[idx].framesX = parseInt(frameXInput.value, 10) || 1;
+            saveSpritesConfig();
+        });
+        wrapper.appendChild(frameXInput);
+
+        // --- Frames Y ---
+        const frameYLabel = document.createElement('label');
+        frameYLabel.textContent = 'Frames Y:';
+        frameYLabel.className = 'sprite-frame-label';
+        wrapper.appendChild(frameYLabel);
+
+        const frameYInput = document.createElement('input');
+        frameYInput.type = 'number';
+        frameYInput.min = 1;
+        frameYInput.max = 100;
+        frameYInput.value = s.framesY || 1;
+        frameYInput.className = 'sprite-frame-input';
+        frameYInput.addEventListener('change', () => {
+            uploadedSprites[idx].framesY = parseInt(frameYInput.value, 10) || 1;
+            saveSpritesConfig();
+        });
+        wrapper.appendChild(frameYInput);
 
         // --- Frame speed label and input ---
         const frameSpeedLabel = document.createElement('label');
@@ -276,17 +355,51 @@ let editingSpriteIdx = null;
 let editorImage = null;
 let crop = { x: 0, y: 0, w: 100, h: 100 };
 let isDragging = false, dragStart = {};
+let dragSelecting = false, dragSelectMode = true; // true=select, false=deselect
+let dragStartCol = 0, dragStartRow = 0;
+let selectedFrames = []; // array of indices (row*framesX+col) for selected cells
+
+// --- NEW: helper to select/deselect a rectangular region of cells ---
+function updateSelectionGrid(c1, r1, c2, r2, selectMode) {
+    const framesX = parseInt(editorFramesX.value, 10) || 1;
+    const framesY = parseInt(editorFramesY.value, 10) || 1;
+    const minC = Math.max(0, Math.min(c1, c2));
+    const maxC = Math.min(framesX - 1, Math.max(c1, c2));
+    const minR = Math.max(0, Math.min(r1, r2));
+    const maxR = Math.min(framesY - 1, Math.max(r1, r2));
+
+    if (selectMode) {
+        // Add cells in row-major order, avoid duplicates
+        for (let r = minR; r <= maxR; r++) {
+            for (let c = minC; c <= maxC; c++) {
+                const idx = r * framesX + c;
+                if (!selectedFrames.includes(idx)) selectedFrames.push(idx);
+            }
+        }
+        selectedFrames.sort((a, b) => a - b);
+    } else {
+        // Remove cells
+        for (let r = minR; r <= maxR; r++) {
+            for (let c = minC; c <= maxC; c++) {
+                const idx = r * framesX + c;
+                const p = selectedFrames.indexOf(idx);
+                if (p !== -1) selectedFrames.splice(p, 1);
+            }
+        }
+    }
+    drawEditorCanvas();
+}
 
 const spriteEditorModal = document.getElementById('spriteEditorModal');
 const spriteEditorCanvas = document.getElementById('spriteEditorCanvas');
-const editorFrames = document.getElementById('editorFrames');
 const editorFramesX = document.getElementById('editorFramesX');
 const editorFramesY = document.getElementById('editorFramesY');
 const editorDirection = document.getElementById('editorDirection');
 const saveSpriteEdit = document.getElementById('saveSpriteEdit');
 const closeSpriteEditor = document.getElementById('closeSpriteEditor');
 
-let dragStartCol = 0, dragStartRow = 0;
+// Use the span already present in settings.html
+const editorFramesLabel = document.getElementById('editorFramesLabel');
 
 function openSpriteEditor(idx) {
     editingSpriteIdx = idx;
@@ -296,24 +409,61 @@ function openSpriteEditor(idx) {
         crop = uploadedSprites[idx].crop
             ? { ...uploadedSprites[idx].crop }
             : { x: 0, y: 0, w: editorImage.width, h: editorImage.height };
-        editorFrames.value = uploadedSprites[idx].frames || 6;
         editorFramesX.value = uploadedSprites[idx].framesX || uploadedSprites[idx].frames || 6;
         editorFramesY.value = uploadedSprites[idx].framesY || 1;
         editorDirection.value = uploadedSprites[idx].direction || 'horizontal';
+        // Load selectedFrames or default to NONE (empty) so nothing is pre-selected
+        const framesX = parseInt(editorFramesX.value, 10) || 1;
+        const framesY = parseInt(editorFramesY.value, 10) || 1;
+        if (Array.isArray(uploadedSprites[idx].selectedFrames)) {
+            selectedFrames = [...uploadedSprites[idx].selectedFrames];
+        } else {
+            // Default: none selected (user will select cells manually)
+            selectedFrames = [];
+        }
+        // ensure DPR for editor canvas then draw
+        ensureCanvasDPR(spriteEditorCanvas);
         drawEditorCanvas();
         spriteEditorModal.classList.add('active');
     };
 }
 
+// --- Auto-update sprite editor preview on input changes ---
+editorFramesX.addEventListener('input', () => {
+    // Reset selection to NONE on grid change (previously selected all)
+    const framesX = parseInt(editorFramesX.value, 10) || 1;
+    const framesY = parseInt(editorFramesY.value, 10) || 1;
+    selectedFrames = [];
+    drawEditorCanvas();
+});
+editorFramesY.addEventListener('input', () => {
+    // Reset selection to NONE on grid change
+    const framesX = parseInt(editorFramesX.value, 10) || 1;
+    const framesY = parseInt(editorFramesY.value, 10) || 1;
+    selectedFrames = [];
+    drawEditorCanvas();
+});
+
 function drawEditorCanvas() {
-    const ctx = spriteEditorCanvas.getContext('2d');
-    ctx.clearRect(0, 0, spriteEditorCanvas.width, spriteEditorCanvas.height);
-    // Fit image to canvas
-    const scale = Math.min(spriteEditorCanvas.width / editorImage.width, spriteEditorCanvas.height / editorImage.height, 1);
-    const offsetX = (spriteEditorCanvas.width - editorImage.width * scale) / 2;
-    const offsetY = (spriteEditorCanvas.height - editorImage.height * scale) / 2;
+    if (!editorImage) return;
+    // ensure DPR transform
+    const ctx = ensureCanvasDPR(spriteEditorCanvas);
+
+    // ensure no smoothing for editor rendering
+    try {
+        ctx.imageSmoothingEnabled = false;
+        if (typeof ctx.imageSmoothingQuality !== 'undefined') ctx.imageSmoothingQuality = 'low';
+    } catch (e) {}
+
+    ctx.clearRect(0, 0, spriteEditorCanvas.clientWidth, spriteEditorCanvas.clientHeight);
+    // Fit image to canvas using CSS pixel sizes
+    const scale = Math.min(spriteEditorCanvas.clientWidth / editorImage.width, spriteEditorCanvas.clientHeight / editorImage.height, 1);
+    const offsetX = (spriteEditorCanvas.clientWidth - editorImage.width * scale) / 2;
+    const offsetY = (spriteEditorCanvas.clientHeight - editorImage.height * scale) / 2;
     ctx.drawImage(editorImage, offsetX, offsetY, editorImage.width * scale, editorImage.height * scale);
+
     // Draw crop rectangle
+    ctx.save();
     ctx.strokeStyle = '#b280ff';
     ctx.lineWidth = 2;
     ctx.strokeRect(
@@ -322,118 +472,289 @@ function drawEditorCanvas() {
         crop.w * scale,
         crop.h * scale
     );
-}
+    ctx.restore();
 
-spriteEditorCanvas.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    const rect = spriteEditorCanvas.getBoundingClientRect();
-    dragStart = {
-        x: (e.clientX - rect.left),
-        y: (e.clientY - rect.top)
-    };
-    const scale = Math.min(spriteEditorCanvas.width / editorImage.width, spriteEditorCanvas.height / editorImage.height, 1);
-    const offsetX = (spriteEditorCanvas.width - editorImage.width * scale) / 2;
-    const offsetY = (spriteEditorCanvas.height - editorImage.height * scale) / 2;
     const framesX = parseInt(editorFramesX.value, 10) || 1;
     const framesY = parseInt(editorFramesY.value, 10) || 1;
-    const frameW = Math.floor(editorImage.width / framesX);
-    const frameH = Math.floor(editorImage.height / framesY);
-    dragStartCol = Math.floor(((dragStart.x - offsetX) / scale) / frameW);
-    dragStartRow = Math.floor(((dragStart.y - offsetY) / scale) / frameH);
-    handleSnapCrop(e);
-});
+    const cellW = crop.w / framesX;
+    const cellH = crop.h / framesY;
 
-spriteEditorCanvas.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    handleSnapCrop(e);
-});
-spriteEditorCanvas.addEventListener('mouseup', () => { isDragging = false; });
+    // Draw grid and selection using CSS-scaled coordinates
+    for (let row = 0; row < framesY; row++) {
+        for (let col = 0; col < framesX; col++) {
+            const idx = row * framesX + col;
+            const x = offsetX + (crop.x + col * cellW) * scale;
+            const y = offsetY + (crop.y + row * cellH) * scale;
+            const w = cellW * scale;
+            const h = cellH * scale;
+            if (selectedFrames.includes(idx)) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(178,128,255,0.35)';
+                ctx.fillRect(x, y, w, h);
+                ctx.restore();
+            } else {
+                ctx.save();
+                ctx.fillStyle = 'rgba(255,255,255,0.10)';
+                ctx.fillRect(x, y, w, h);
+                ctx.restore();
+            }
+            ctx.save();
+            ctx.strokeStyle = selectedFrames.includes(idx) ? '#b280ff' : '#888';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, w, h);
+            ctx.restore();
+            if (selectedFrames.includes(idx)) {
+                ctx.save();
+                ctx.fillStyle = '#fff';
+                ctx.font = `${Math.max(10, Math.floor(h * 0.4))}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const order = selectedFrames.indexOf(idx) + 1;
+                ctx.fillText(order, x + w / 2, y + h / 2);
+                ctx.restore();
+            }
+        }
+    }
+    editorFramesLabel.textContent = `Selected Frames: ${selectedFrames.length}`;
+}
 
-function handleSnapCrop(e) {
+// Update event handlers that computed scale using element.width/height to use client sizes
+spriteEditorCanvas.addEventListener('mousedown', (e) => {
+    if (!editorImage) return;
+    isDragging = true;
     const rect = spriteEditorCanvas.getBoundingClientRect();
     const x = (e.clientX - rect.left);
     const y = (e.clientY - rect.top);
-    const scale = Math.min(spriteEditorCanvas.width / editorImage.width, spriteEditorCanvas.height / editorImage.height, 1);
-    const offsetX = (spriteEditorCanvas.width - editorImage.width * scale) / 2;
-    const offsetY = (spriteEditorCanvas.height - editorImage.height * scale) / 2;
+    const scale = Math.min(spriteEditorCanvas.clientWidth / editorImage.width, spriteEditorCanvas.clientHeight / editorImage.height, 1);
+    const offsetX = (spriteEditorCanvas.clientWidth - editorImage.width * scale) / 2;
+    const offsetY = (spriteEditorCanvas.clientHeight - editorImage.height * scale) / 2;
     const framesX = parseInt(editorFramesX.value, 10) || 1;
     const framesY = parseInt(editorFramesY.value, 10) || 1;
-    const frameW = Math.floor(editorImage.width / framesX);
-    const frameH = Math.floor(editorImage.height / framesY);
-
-    let col = Math.floor(((x - offsetX) / scale) / frameW);
-    let row = Math.floor(((y - offsetY) / scale) / frameH);
+    const cellW = crop.w / framesX;
+    const cellH = crop.h / framesY;
+    const relX = (x - offsetX - crop.x * scale) / (cellW * scale);
+    const relY = (y - offsetY - crop.y * scale) / (cellH * scale);
+    const col = Math.floor(relX);
+    const row = Math.floor(relY);
+    if (col < 0 || col >= framesX || row < 0 || row >= framesY) return;
+    const idx = row * framesX + col;
+    dragStartCol = col;
+    dragStartRow = row;
+    if (e.button === 0) {
+        dragSelectMode = !selectedFrames.includes(idx);
+        updateSelectionGrid(col, row, col, row, dragSelectMode);
+    }
+    if (e.button === 2) {
+        dragSelectMode = false;
+        updateSelectionGrid(col, row, col, row, false);
+    }
+    drawEditorCanvas();
+});
+spriteEditorCanvas.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    if (!editorImage) return;
+    const rect = spriteEditorCanvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left);
+    const y = (e.clientY - rect.top);
+    const scale = Math.min(spriteEditorCanvas.clientWidth / editorImage.width, spriteEditorCanvas.clientHeight / editorImage.height, 1);
+    const offsetX = (spriteEditorCanvas.clientWidth - editorImage.width * scale) / 2;
+    const offsetY = (spriteEditorCanvas.clientHeight - editorImage.height * scale) / 2;
+    const framesX = parseInt(editorFramesX.value, 10) || 1;
+    const framesY = parseInt(editorFramesY.value, 10) || 1;
+    const cellW = crop.w / framesX;
+    const cellH = crop.h / framesY;
+    const relX = (x - offsetX - crop.x * scale) / (cellW * scale);
+    const relY = (y - offsetY - crop.y * scale) / (cellH * scale);
+    let col = Math.floor(relX);
+    let row = Math.floor(relY);
     col = Math.max(0, Math.min(framesX - 1, col));
     row = Math.max(0, Math.min(framesY - 1, row));
-    const startCol = Math.min(dragStartCol, col);
-    const endCol = Math.max(dragStartCol, col);
-    const startRow = Math.min(dragStartRow, row);
-    const endRow = Math.max(dragStartRow, row);
-
-    crop.x = startCol * frameW;
-    crop.y = startRow * frameH;
-    crop.w = (endCol - startCol + 1) * frameW;
-    crop.h = (endRow - startRow + 1) * frameH;
-
+    updateSelectionGrid(dragStartCol, dragStartRow, col, row, dragSelectMode);
     drawEditorCanvas();
-}
-
-closeSpriteEditor.addEventListener('click', () => {
-    spriteEditorModal.classList.remove('active');
 });
 
-saveSpriteEdit.addEventListener('click', () => {
-    if (editingSpriteIdx !== null) {
-        uploadedSprites[editingSpriteIdx].frames = parseInt(editorFrames.value, 10) || 6;
-        uploadedSprites[editingSpriteIdx].framesX = parseInt(editorFramesX.value, 10) || 1;
-        uploadedSprites[editingSpriteIdx].framesY = parseInt(editorFramesY.value, 10) || 1;
-        uploadedSprites[editingSpriteIdx].direction = editorDirection.value;
-        uploadedSprites[editingSpriteIdx].crop = { ...crop };
-        renderSpriteGallery();
-        saveSpritesConfig();
-        spriteEditorModal.classList.remove('active'); // <-- fix here
+// Prevent default context menu on the editor canvas (we use right-click for deselect)
+spriteEditorCanvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
+
+// Finalize drag selection on mouseup / leave
+window.addEventListener('mouseup', (e) => {
+    if (isDragging) {
+        isDragging = false;
+        // ensure final draw to show completed selection
+        drawEditorCanvas();
+    }
+});
+spriteEditorCanvas.addEventListener('mouseleave', (e) => {
+    if (isDragging) {
+        isDragging = false;
+        drawEditorCanvas();
     }
 });
 
-function clearAvatarsForCurrentChannel() {
-    const channel = channelNameInput.value;
-    localStorage.removeItem('avatars_' + channel);
+// When opening the editor ensure DPR sizing before drawing
+function openSpriteEditor(idx) {
+    editingSpriteIdx = idx;
+    editorImage = new window.Image();
+    editorImage.src = uploadedSprites[idx].url;
+    editorImage.onload = () => {
+        crop = uploadedSprites[idx].crop
+            ? { ...uploadedSprites[idx].crop }
+            : { x: 0, y: 0, w: editorImage.width, h: editorImage.height };
+        editorFramesX.value = uploadedSprites[idx].framesX || uploadedSprites[idx].frames || 6;
+        editorFramesY.value = uploadedSprites[idx].framesY || 1;
+        editorDirection.value = uploadedSprites[idx].direction || 'horizontal';
+        if (Array.isArray(uploadedSprites[idx].selectedFrames)) {
+            selectedFrames = [...uploadedSprites[idx].selectedFrames];
+        } else {
+            selectedFrames = [];
+        }
+        // ensure DPR for editor canvas then draw
+        ensureCanvasDPR(spriteEditorCanvas);
+        drawEditorCanvas();
+        spriteEditorModal.classList.add('active');
+    };
 }
 
-enableDespawnInput.addEventListener('change', () => {
-    if (enableDespawnInput.checked) {
-        clearAvatarsForCurrentChannel();
+// Also ensure DPR when the window resizes so the editor stays sharp
+window.addEventListener('resize', () => {
+    // If editor is open, re-ensure DPR and redraw
+    if (spriteEditorModal.classList.contains('active')) {
+        ensureCanvasDPR(spriteEditorCanvas);
+        drawEditorCanvas();
     }
+    // re-render gallery so previews stay crisp on DPR changes / resize
+    renderSpriteGallery();
 });
 
-useTwitchColorInput.addEventListener('change', () => {
-    clearAvatarsForCurrentChannel();
-});
+// --- Sprite Packs logic ---
 
-speedInput.addEventListener('change', () => {
-    clearAvatarsForCurrentChannel();
-});
+const spritePacksContainer = document.getElementById('spritePacks');
+const refreshPacksBtn = document.getElementById('refreshPacksBtn');
 
-// --- Settings Search Bar Logic ---
-const searchInput = document.getElementById('settingsSearch');
-if (searchInput) {
-    searchInput.addEventListener('input', function () {
-        const q = searchInput.value.trim().toLowerCase();
-        const categories = document.querySelectorAll('.category');
-        categories.forEach(cat => {
-            // Combine all label and input text in this category
-            let text = cat.innerText.toLowerCase();
-            // If any input has a placeholder, include it
-            cat.querySelectorAll('input,select,button,label').forEach(el => {
-                if (el.placeholder) text += ' ' + el.placeholder.toLowerCase();
-                if (el.value && el.type === 'button') text += ' ' + el.value.toLowerCase();
-            });
-            // Show if query matches, hide otherwise
-            if (q === '' || text.indexOf(q) !== -1) {
-                cat.style.display = '';
-            } else {
-                cat.style.display = 'none';
+// Load and render available packs
+async function loadSpritePacks() {
+    try {
+        const res = await fetch('/sprite-packs');
+        const packs = await res.json();
+        renderSpritePacks(packs || []);
+    } catch (e) {
+        console.error('Failed to load packs', e);
+        spritePacksContainer.innerHTML = '<div style="color:#f88">Failed to load packs</div>';
+    }
+}
+
+function renderSpritePacks(packs) {
+    spritePacksContainer.innerHTML = '';
+    if (!packs.length) {
+        spritePacksContainer.innerHTML = '<div style="color:#ccc">No packs available on the server.</div>';
+        return;
+    }
+    packs.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'sprite-wrapper';
+        card.style.maxWidth = '220px';
+        card.style.textAlign = 'center';
+
+        const img = document.createElement('img');
+        img.src = p.preview || '/packs/' + p.id + '/' + (p.sprites && p.sprites[0] && (p.sprites[0].file || p.sprites[0].url) || 'preview.png');
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        img.style.objectFit = 'contain';
+        img.alt = p.name || p.id;
+        card.appendChild(img);
+
+        const title = document.createElement('div');
+        title.textContent = p.name || p.id;
+        title.style.fontWeight = 'bold';
+        title.style.marginTop = '8px';
+        card.appendChild(title);
+
+        const desc = document.createElement('div');
+        desc.textContent = p.description || '';
+        desc.style.fontSize = '0.9em';
+        desc.style.color = '#cfcfcf';
+        desc.style.marginTop = '6px';
+        card.appendChild(desc);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'button';
+        btn.style.marginTop = '8px';
+        btn.textContent = 'Install Pack';
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = 'Installing...';
+            try {
+                const r = await fetch('/install-pack', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: p.id })
+                });
+                const data = await r.json();
+                if (data && data.success) {
+                    // Refresh config and gallery
+                    const cfgRes = await fetch('/config');
+                    const cfg = await cfgRes.json();
+                    uploadedSprites = Array.isArray(cfg.sprites) ? cfg.sprites : [];
+                    renderSpriteGallery();
+                    saveSpritesConfig(); // persist UI changes to server-side config
+                    btn.textContent = 'Installed';
+                } else {
+                    console.error('Pack install failed', data);
+                    btn.textContent = 'Failed';
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                console.error('Install error', e);
+                btn.textContent = 'Error';
+                btn.disabled = false;
             }
         });
+        card.appendChild(btn);
+
+        spritePacksContainer.appendChild(card);
     });
 }
+
+if (refreshPacksBtn) {
+    refreshPacksBtn.addEventListener('click', () => loadSpritePacks());
+}
+
+// Load packs initially
+loadSpritePacks();
+
+// --- Add Save & Close handlers for sprite editor ---
+// Save edits back into uploadedSprites and persist
+saveSpriteEdit.addEventListener('click', () => {
+    if (editingSpriteIdx === null) return;
+    const framesX = parseInt(editorFramesX.value, 10) || 1;
+    const framesY = parseInt(editorFramesY.value, 10) || 1;
+    // clamp selectedFrames to valid range and keep order
+    const maxIdx = framesX * framesY;
+    selectedFrames = selectedFrames.filter(i => Number.isInteger(i) && i >= 0 && i < maxIdx);
+    selectedFrames.sort((a, b) => a - b);
+
+    const s = uploadedSprites[editingSpriteIdx] || {};
+    s.framesX = framesX;
+    s.framesY = framesY;
+    s.direction = editorDirection.value || 'horizontal';
+    s.crop = { ...crop };
+    s.selectedFrames = [...selectedFrames];
+    // ensure frames count matches selection (fallback to full grid if none selected)
+    s.frames = selectedFrames.length > 0 ? selectedFrames.length : (framesX * framesY);
+    uploadedSprites[editingSpriteIdx] = s;
+
+    renderSpriteGallery();
+    saveSpritesConfig();
+    spriteEditorModal.classList.remove('active');
+    editingSpriteIdx = null;
+});
+
+// Close button: just hide modal and clear editing index (discarding unsaved changes)
+closeSpriteEditor.addEventListener('click', () => {
+    spriteEditorModal.classList.remove('active');
+    editingSpriteIdx = null;
+});
+

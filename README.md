@@ -66,6 +66,28 @@ If you use this project, please credit the original author or link back to this 
 
 ---
 
+## Sprite Packs
+
+You can now install pre-made sprite packs (for example a "dino pack") without uploading files manually.
+
+- Packs are stored on the server under the `packs/` directory.
+- Each pack should include a `manifest.json` describing the sprites (optional) and the image files.
+- Use the Settings page -> "Sprite Packs" to browse available packs and install them into your sprites list.
+
+Manifest example (packs/dino/manifest.json):
+```json
+{
+  "name": "Dino Pack",
+  "description": "Cute dinosaur avatars",
+  "preview": "/packs/dino/preview.png",
+  "sprites": [
+    { "file": "dino_walk_1.png", "frames": 6, "framesX": 6, "framesY": 1, "frameSpeed": 6 }
+  ]
+}
+```
+
+---
+
 ## File Structure
 
 - `server.js` — Node.js backend, Twitch chat integration, config endpoints.

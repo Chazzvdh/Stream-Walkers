@@ -1,0 +1,17 @@
+{
+  "id": "dino",
+  "name": "Dino Pack",
+  "description": "Cute dinosaur avatars",
+  "preview": "/packs/dino/preview.png",
+  "sprites": [
+    {
+      "file": "dino_walk_1.png",
+      "frames": 6,
+      "framesX": 6,
+      "framesY": 1,
+      "frameSpeed": 8,
+      "direction": "horizontal"
+    }
+  ]
+}
+

@@ -2,7 +2,7 @@
   "channelName": "pestily",
   "avatarColor": "#ffffff",
   "walkingSpeed": 0.5,
-  "useTwitchColor": false,
+  "useTwitchColor": true,
   "enableJumping": true,
   "jumpVelocity": 2,
   "gravity": 1,
@@ -23,41 +23,36 @@
   "nameFontStyle": "normal",
   "nameStrokeStyle": "#000000",
   "nameLineWidth": 2,
-  "messageFontFamily": "sans-serif",
+  "messageFontFamily": "Tahoma, Geneva, sans-serif",
   "messageFontWeight": "normal",
   "messageFontStyle": "normal",
   "messageStrokeStyle": "#ffffff",
-  "messageLineWidth": 3,
+  "messageLineWidth": 5,
   "messageFillStyle": "#000000",
   "defaultFrameSpeed": 5,
   "sprites": [
     {
-      "url": "/sprites/sprite_1764146406148.png",
-      "frames": 4,
-      "framesX": 4,
-      "framesY": 4,
-      "direction": "horizontal",
+      "url": "/sprites/sprite_1764261129308.png",
+      "frames": 7,
       "frameSpeed": 5,
-      "crop": {
-        "x": 0,
-        "y": 256,
-        "w": 256,
-        "h": 128
-      }
-    },
-    {
-      "url": "/sprites/sprite_1764146853029.png",
-      "frames": 9,
-      "framesX": 9,
+      "framesX": 24,
       "framesY": 1,
       "direction": "horizontal",
-      "frameSpeed": 5,
       "crop": {
         "x": 0,
         "y": 0,
-        "w": 567,
-        "h": 55
-      }
+        "w": 576,
+        "h": 24
+      },
+      "selectedFrames": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ]
     }
   ]
 }

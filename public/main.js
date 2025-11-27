@@ -38,29 +38,48 @@ async function loadConfig() {
     }
 }
 
-let prevWidth = canvas.width;
-let prevHeight = canvas.height;
+// Replace prevWidth/prevHeight with CSS pixel tracking
+let prevCssWidth = window.innerWidth;
+let prevCssHeight = window.innerHeight;
 
 function resizeCanvas() {
-    const newWidth = window.innerWidth;
-    const newHeight = window.innerHeight;
+    const cssWidth = window.innerWidth;
+    const cssHeight = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
 
-    // Scale avatar positions
-    if (prevWidth) {
-        const scaleX = newWidth / prevWidth;
+    // Scale avatar positions (use CSS widths)
+    if (prevCssWidth) {
+        const scaleX = cssWidth / prevCssWidth;
         avatars.forEach(avatar => {
             avatar.x *= scaleX;
-            avatar.baseY = newHeight - avatar.size - 10;
+            avatar.baseY = cssHeight - avatar.size - 10;
             if (!avatar.isJumping) {
                 avatar.y = avatar.baseY;
             }
         });
     }
 
-    canvas.width = newWidth;
-    canvas.height = newHeight;
-    prevWidth = newWidth;
-    prevHeight = newHeight;
+    // Set CSS display size and backing store scaled by DPR
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+    // Make drawing coordinates use CSS pixels while rendering at full resolution
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // --- Ensure nearest-neighbor rendering (crisp pixels) ---
+    try {
+        ctx.imageSmoothingEnabled = false;
+        // some browsers support explicit quality flags
+        if (typeof ctx.imageSmoothingQuality !== 'undefined') {
+            ctx.imageSmoothingQuality = 'low';
+        }
+    } catch (e) {
+        // ignore if not supported
+    }
+
+    prevCssWidth = cssWidth;
+    prevCssHeight = cssHeight;
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -141,8 +160,11 @@ function loadAvatars(channelName, settings) {
 class Avatar {
     constructor(username, color, walkingSpeed = 1, settings = {}, spriteIdx = null) {
         this.size = settings.avatarSize || 64;
-        this.x = Math.random() * (canvas.width - this.size);
-        this.y = canvas.height - this.size - 10;
+        // use CSS pixel sizes (clientWidth/clientHeight) instead of backing store
+        const canvasCssW = canvas.clientWidth || window.innerWidth;
+        const canvasCssH = canvas.clientHeight || window.innerHeight;
+        this.x = Math.random() * Math.max(0, (canvasCssW - this.size));
+        this.y = canvasCssH - this.size - 10;
         this.baseY = this.y;
         const randomSpeedFactor = Math.random() + 0.5;
         this.dx = (Math.random() < 0.5 ? 1 : -1) * walkingSpeed * randomSpeedFactor;
@@ -185,6 +207,20 @@ class Avatar {
         this.spriteFrames = spriteFramesArr[this.spriteIdx];
         this.spriteFrameSpeed = spriteFrameSpeeds[this.spriteIdx] || (userSettings.defaultFrameSpeed || 10);
         this.frameInterval = Math.max(1, Math.floor(60 / this.spriteFrameSpeed));
+        // --- grid animation support ---
+        const spriteConfig = (userSettings.sprites && userSettings.sprites[this.spriteIdx]) || {};
+        this.framesX = spriteConfig.framesX || this.spriteFrames || 1;
+        this.framesY = spriteConfig.framesY || 1;
+        // --- Use selectedFrames for animation order ---
+        if (Array.isArray(spriteConfig.selectedFrames) && spriteConfig.selectedFrames.length > 0) {
+            this.selectedFrames = [...spriteConfig.selectedFrames];
+            this.spriteFrames = this.selectedFrames.length;
+        } else {
+            // fallback: all cells in order
+            this.selectedFrames = [];
+            for (let i = 0; i < this.framesX * this.framesY; ++i) this.selectedFrames.push(i);
+            this.spriteFrames = this.selectedFrames.length;
+        }
     }
 
     setMessage(msg) {
@@ -211,7 +247,9 @@ class Avatar {
             }
         }
         this.x += this.dx;
-        if (this.x < 0 || this.x + this.size > canvas.width) {
+        // Use CSS pixel width for bounds checks
+        const cssW = canvas.clientWidth || window.innerWidth;
+        if (this.x < 0 || this.x + this.size > cssW) {
             this.dx *= -1;
         }
         if (this.gameFrame % this.frameInterval === 0) {
@@ -229,6 +267,11 @@ class Avatar {
     draw() {
         ctx.save();
         ctx.globalAlpha = this.avatarOpacity;
+        // Ensure no smoothing when drawing sprite frames
+        try {
+            ctx.imageSmoothingEnabled = false;
+            if (typeof ctx.imageSmoothingQuality !== 'undefined') ctx.imageSmoothingQuality = 'low';
+        } catch (e) {}
 
         // Calculate shadow scale based on jump height
         let jumpHeight = this.baseY - this.y;
@@ -255,21 +298,21 @@ class Avatar {
         // --- Sprite cropping and direction logic ---
         let spriteConfig = (userSettings.sprites && userSettings.sprites[this.spriteIdx]) || {};
         let crop = spriteConfig.crop || { x: 0, y: 0, w: this.spriteImage.width, h: this.spriteImage.height };
-        let direction = spriteConfig.direction || 'horizontal';
-        let frames = spriteConfig.frames || this.spriteFrames;
+        // --- grid support ---
+        let framesX = spriteConfig.framesX || this.spriteFrames || 1;
+        let framesY = spriteConfig.framesY || 1;
+        let totalFrames = framesX * framesY;
 
-        let frameWidth, frameHeight, sx, sy;
-        if (direction === 'vertical') {
-            frameWidth = crop.w;
-            frameHeight = crop.h / frames;
-            sx = crop.x;
-            sy = crop.y + this.frameX * frameHeight;
-        } else {
-            frameWidth = crop.w / frames;
-            frameHeight = crop.h;
-            sx = crop.x + this.frameX * frameWidth;
-            sy = crop.y;
-        }
+        // --- Use selectedFrames for animation order ---
+        let frameIdx = this.frameX % this.spriteFrames;
+        let cellIdx = this.selectedFrames[frameIdx] ?? 0;
+        let col = cellIdx % framesX;
+        let row = Math.floor(cellIdx / framesX);
+
+        let frameWidth = crop.w / framesX;
+        let frameHeight = crop.h / framesY;
+        let sx = crop.x + col * frameWidth;
+        let sy = crop.y + row * frameHeight;
 
         // --- Aspect ratio correction ---
         const targetW = this.size;
@@ -292,6 +335,11 @@ class Avatar {
 
         if (this.dx < 0) {
             ctx.save();
+            // maintain no-smoothing for flipped draw
+            try {
+                ctx.imageSmoothingEnabled = false;
+                if (typeof ctx.imageSmoothingQuality !== 'undefined') ctx.imageSmoothingQuality = 'low';
+            } catch (e) {}
             ctx.scale(-1, 1);
             ctx.drawImage(
                 this.spriteImage,
@@ -403,7 +451,8 @@ function startApp() {
     });
 
     function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Clear using CSS pixel sizes (ctx is set to CSS coordinates)
+        ctx.clearRect(0, 0, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
 
         const now = Date.now();
         const settings = getUserSettings();

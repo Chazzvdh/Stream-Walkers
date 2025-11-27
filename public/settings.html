@@ -286,6 +286,15 @@
         <input type="number" id="despawnTime" name="despawnTime" class="input" min="1" max="3600" step="1">
     </div>
 
+    <div class="category">
+        <h2>Sprite Packs</h2>
+        <div id="spritePacks" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+        <div style="margin-top:8px;">
+            <button type="button" id="refreshPacksBtn" class="button">Refresh Packs</button>
+            <span class="info-icon" data-tooltip="Install pre-made sprite packs (adds sprites to your library).">ⓘ</span>
+        </div>
+    </div>
+
     <button type="submit" class="button">Save</button>
 </form>
 <p><a href="index.html">Back to Main</a></p>
@@ -297,7 +306,7 @@
         <h2>Edit Sprite</h2>
         <canvas id="spriteEditorCanvas" width="400" height="200" class="sprite-editor-canvas"></canvas>
         <div class="sprite-editor-controls">
-            <label>Frames: <input type="number" id="editorFrames" min="1" max="20" value="6" style="width:60px;"></label>
+            <span id="editorFramesLabel" style="margin-right:12px;">Selected Frames: 0</span>
             <label>Frames X: <input type="number" id="editorFramesX" min="1" max="20" value="6" style="width:60px;"></label>
             <label>Frames Y: <input type="number" id="editorFramesY" min="1" max="20" value="1" style="width:60px;"></label>
             <label>Direction:
@@ -309,11 +318,10 @@
             <button id="saveSpriteEdit" class="button">Save</button>
         </div>
         <div class="sprite-editor-hint">
-            Drag to select crop area. Adjust frames and direction as needed.
+            Drag to select crop area. Adjust <b>Frames X</b> and <b>Frames Y</b> for grid sheets (e.g. 4x4). Animation will play left-to-right, top-to-bottom.
         </div>
     </div>
 </div>
 <script src="settings.js"></script>
 </body>
 </html>
-
