@@ -1,3 +1,4 @@
+// File: `public/settings.js`
 const form = document.getElementById('settingsForm');
 const colorInput = document.getElementById('avatarColor');
 const speedInput = document.getElementById('walkingSpeed');
@@ -36,10 +37,15 @@ const messageStrokeStyleInput = document.getElementById('messageStrokeStyle');
 const messageLineWidthInput = document.getElementById('messageLineWidth');
 const messageFillStyleInput = document.getElementById('messageFillStyle');
 
+// new DOM ref used by search
+const settingsSearch = document.getElementById('settingsSearch');
+
+// editor state
+let dragSelectMode = true;
+
 // Helper: ensure a canvas has a DPR-scaled backing store and ctx transform
 function ensureCanvasDPR(c) {
     const dpr = window.devicePixelRatio || 1;
-    // Use computed CSS sizes; fallback to element attributes if not set
     const cssW = c.clientWidth || parseInt(c.style.width) || c.width || 300;
     const cssH = c.clientHeight || parseInt(c.style.height) || c.height || 150;
     c.style.width = cssW + 'px';
@@ -48,19 +54,13 @@ function ensureCanvasDPR(c) {
     c.height = Math.max(1, Math.round(cssH * dpr));
     const ctx = c.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // --- Disable smoothing so downscaled frames stay sharp (nearest-neighbor) ---
     try {
         ctx.imageSmoothingEnabled = false;
-        if (typeof ctx.imageSmoothingQuality !== 'undefined') {
-            ctx.imageSmoothingQuality = 'low';
-        }
+        if (typeof ctx.imageSmoothingQuality !== 'undefined') ctx.imageSmoothingQuality = 'low';
     } catch (e) {}
-
     return ctx;
 }
 
-// --- renderSpriteGallery changes: render small CSS-sized preview canvases and draw scaled frames ---
 function renderSpriteGallery() {
     spriteGallery.innerHTML = '';
     uploadedSprites.forEach((s, idx) => {
@@ -75,21 +75,16 @@ function renderSpriteGallery() {
             const framesY = s.framesY || 1;
             const frameW = crop.w / framesX;
             const frameH = crop.h / framesY;
-
-            // fixed display height for previews (CSS pixels)
             const displayH = 50;
             const aspect = (frameW && frameH) ? (frameW / frameH) : 1;
             const displayW = Math.max(30, Math.round(displayH * aspect));
 
             const canvas = document.createElement('canvas');
             canvas.className = 'sprite-img';
-            // set CSS size then scale backing store via ensureCanvasDPR
             canvas.style.width = displayW + 'px';
             canvas.style.height = displayH + 'px';
             const ctx = ensureCanvasDPR(canvas);
 
-            // draw the first frame cropped and scaled into the small preview
-            // ensure no smoothing for crisp preview
             try {
                 ctx.imageSmoothingEnabled = false;
                 if (typeof ctx.imageSmoothingQuality !== 'undefined') ctx.imageSmoothingQuality = 'low';
@@ -100,14 +95,10 @@ function renderSpriteGallery() {
                 crop.x, crop.y, frameW, frameH,
                 0, 0, displayW, displayH
             );
-
             wrapper.insertBefore(canvas, wrapper.firstChild);
         };
-        img.onerror = () => {
-            // fallback: show nothing or error
-        };
+        img.onerror = () => { /* ignore */ };
 
-        // --- Frame label and input ---
         const frameLabel = document.createElement('label');
         frameLabel.textContent = 'Frames:';
         frameLabel.className = 'sprite-frame-label';
@@ -125,7 +116,6 @@ function renderSpriteGallery() {
         });
         wrapper.appendChild(frameInput);
 
-        // --- Frames X ---
         const frameXLabel = document.createElement('label');
         frameXLabel.textContent = 'Frames X:';
         frameXLabel.className = 'sprite-frame-label';
@@ -143,7 +133,6 @@ function renderSpriteGallery() {
         });
         wrapper.appendChild(frameXInput);
 
-        // --- Frames Y ---
         const frameYLabel = document.createElement('label');
         frameYLabel.textContent = 'Frames Y:';
         frameYLabel.className = 'sprite-frame-label';
@@ -161,7 +150,6 @@ function renderSpriteGallery() {
         });
         wrapper.appendChild(frameYInput);
 
-        // --- Frame speed label and input ---
         const frameSpeedLabel = document.createElement('label');
         frameSpeedLabel.textContent = 'Frame Speed:';
         frameSpeedLabel.className = 'sprite-frame-label';
@@ -180,7 +168,6 @@ function renderSpriteGallery() {
         });
         wrapper.appendChild(frameSpeedInput);
 
-        // --- Edit and Delete buttons side by side ---
         const btnRow = document.createElement('div');
         btnRow.className = 'sprite-btn-row';
 
@@ -204,17 +191,17 @@ function renderSpriteGallery() {
                 uploadedSprites.splice(idx, 1);
                 renderSpriteGallery();
                 saveSpritesConfig();
+            }).catch(e => {
+                console.error('Failed to delete sprite', e);
             });
         });
         btnRow.appendChild(delBtn);
 
         wrapper.appendChild(btnRow);
-
         spriteGallery.appendChild(wrapper);
     });
 }
 
-// --- Set All Frame Speed Logic ---
 const setAllFrameSpeedInput = document.getElementById('setAllFrameSpeed');
 const applyAllFrameSpeedBtn = document.getElementById('applyAllFrameSpeed');
 if (applyAllFrameSpeedBtn && setAllFrameSpeedInput) {
@@ -227,16 +214,40 @@ if (applyAllFrameSpeedBtn && setAllFrameSpeedInput) {
     });
 }
 
-function saveSpritesConfig() {
+// Debounce helper
+function debounce(fn, wait = 150) {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), wait);
+    };
+}
+
+// Debounced network save
+const debouncedSave = debounce((payload) => {
     fetch('/set-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            ...getFormConfig(),
-            defaultFrameSpeed,
-            sprites: uploadedSprites
-        })
-    });
+        body: JSON.stringify(payload)
+    }).catch(e => console.error('Failed to save config', e));
+}, 300);
+
+// Replace saveSpritesConfig with debounce support
+function saveSpritesConfig(immediate = false) {
+    const payload = {
+        ...getFormConfig(),
+        defaultFrameSpeed,
+        sprites: uploadedSprites
+    };
+    if (immediate) {
+        fetch('/set-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(e => console.error('Failed to save config', e));
+    } else {
+        debouncedSave(payload);
+    }
 }
 
 function getFormConfig() {
@@ -298,7 +309,6 @@ fetch('/config')
         despawnTimeInput.value = config.despawnTime != null ? config.despawnTime : 60;
         messageDisappearTimeInput.value = config.messageDisappearTime != null ? config.messageDisappearTime : 3;
 
-        // Font and style settings
         nameFontFamilyInput.value = config.nameFontFamily || 'sans-serif';
         nameFontWeightInput.value = config.nameFontWeight || 'normal';
         nameFontStyleInput.value = config.nameFontStyle || 'normal';
@@ -314,10 +324,10 @@ fetch('/config')
         defaultFrameSpeed = config.defaultFrameSpeed != null ? config.defaultFrameSpeed : 10;
         if (setAllFrameSpeedInput) setAllFrameSpeedInput.value = defaultFrameSpeed;
         renderSpriteGallery();
-    });
+    }).catch(e => console.error('Failed to load config', e));
 
 spriteInput.addEventListener('change', function() {
-    const files = Array.from(spriteInput.files);
+    const files = Array.from(spriteInput.files || []);
     if (!files.length) return;
     files.forEach(file => {
         const formData = new FormData();
@@ -325,41 +335,47 @@ spriteInput.addEventListener('change', function() {
         fetch('/upload-sprite', { method: 'POST', body: formData })
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
+                if (data && data.success) {
                     uploadedSprites.push({ url: data.url, frames: 6, frameSpeed: defaultFrameSpeed });
                     renderSpriteGallery();
                     saveSpritesConfig();
+                } else {
+                    console.error('Upload failed', data);
                 }
-            });
+            }).catch(e => console.error('Upload error', e));
     });
 });
 
-form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const newConfig = {
-        ...getFormConfig(),
-        defaultFrameSpeed,
-        sprites: uploadedSprites
-    };
-    fetch('/set-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newConfig)
-    }).then(() => {
-        window.location.href = '/index.html';
+if (form) {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const newConfig = {
+            ...getFormConfig(),
+            defaultFrameSpeed,
+            sprites: uploadedSprites
+        };
+        fetch('/set-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newConfig)
+        }).then(() => {
+            // ensure immediate save; redirect afterwards
+            window.location.href = '/index.html';
+        }).catch(e => {
+            console.error('Failed to save config', e);
+            alert('Failed to save config.');
+        });
     });
-});
+}
 
 // Sprite Editor logic
 let editingSpriteIdx = null;
 let editorImage = null;
 let crop = { x: 0, y: 0, w: 100, h: 100 };
 let isDragging = false, dragStart = {};
-let dragSelecting = false, dragSelectMode = true; // true=select, false=deselect
 let dragStartCol = 0, dragStartRow = 0;
-let selectedFrames = []; // array of indices (row*framesX+col) for selected cells
+let selectedFrames = [];
 
-// --- NEW: helper to select/deselect a rectangular region of cells ---
 function updateSelectionGrid(c1, r1, c2, r2, selectMode) {
     const framesX = parseInt(editorFramesX.value, 10) || 1;
     const framesY = parseInt(editorFramesY.value, 10) || 1;
@@ -369,7 +385,6 @@ function updateSelectionGrid(c1, r1, c2, r2, selectMode) {
     const maxR = Math.min(framesY - 1, Math.max(r1, r2));
 
     if (selectMode) {
-        // Add cells in row-major order, avoid duplicates
         for (let r = minR; r <= maxR; r++) {
             for (let c = minC; c <= maxC; c++) {
                 const idx = r * framesX + c;
@@ -378,7 +393,6 @@ function updateSelectionGrid(c1, r1, c2, r2, selectMode) {
         }
         selectedFrames.sort((a, b) => a - b);
     } else {
-        // Remove cells
         for (let r = minR; r <= maxR; r++) {
             for (let c = minC; c <= maxC; c++) {
                 const idx = r * framesX + c;
@@ -397,92 +411,33 @@ const editorFramesY = document.getElementById('editorFramesY');
 const editorDirection = document.getElementById('editorDirection');
 const saveSpriteEdit = document.getElementById('saveSpriteEdit');
 const closeSpriteEditor = document.getElementById('closeSpriteEditor');
-
-// Use the span already present in settings.html
 const editorFramesLabel = document.getElementById('editorFramesLabel');
 
-function openSpriteEditor(idx) {
-    editingSpriteIdx = idx;
-    editorImage = new window.Image();
-    // allow cross-origin sprites if needed
-    editorImage.crossOrigin = 'anonymous';
-    editorImage.src = uploadedSprites[idx].url;
-    editorImage.onload = () => {
-        crop = uploadedSprites[idx].crop
-            ? { ...uploadedSprites[idx].crop }
-            : { x: 0, y: 0, w: editorImage.width, h: editorImage.height };
-        editorFramesX.value = uploadedSprites[idx].framesX || uploadedSprites[idx].frames || 6;
-        editorFramesY.value = uploadedSprites[idx].framesY || 1;
-        editorDirection.value = uploadedSprites[idx].direction || 'horizontal';
-        if (Array.isArray(uploadedSprites[idx].selectedFrames)) {
-            selectedFrames = [...uploadedSprites[idx].selectedFrames];
-        } else {
-            selectedFrames = []; // start with none selected
-        }
-
-        // Show modal first so the canvas has layout (clientWidth/clientHeight)
-        spriteEditorModal.classList.add('active');
-
-        // --- Ensure the editor canvas is visually larger before DPR sizing/drawing ---
-        // This ensures clientWidth/clientHeight are already large so ensureCanvasDPR uses the intended size.
-        spriteEditorCanvas.style.width = '900px';
-        spriteEditorCanvas.style.height = '480px';
-
-        // On next frame, ensure DPR/backing store is correct and draw.
-        // This guarantees the canvas has non-zero clientWidth/clientHeight.
-        requestAnimationFrame(() => {
-            ensureCanvasDPR(spriteEditorCanvas);
-            drawEditorCanvas();
-        });
-    };
-}
-
-// Add close handler so the ✖ button works reliably
 if (closeSpriteEditor) {
     closeSpriteEditor.addEventListener('click', () => {
         spriteEditorModal.classList.remove('active');
-        // clear editing state (optional)
         editingSpriteIdx = null;
         editorImage = null;
         selectedFrames = [];
     });
 }
 
-// --- Auto-update sprite editor preview on input changes ---
-editorFramesX.addEventListener('input', () => {
-    // Reset selection to NONE on grid change (previously selected all)
-    const framesX = parseInt(editorFramesX.value, 10) || 1;
-    const framesY = parseInt(editorFramesY.value, 10) || 1;
-    selectedFrames = [];
-    drawEditorCanvas();
-});
-editorFramesY.addEventListener('input', () => {
-    // Reset selection to NONE on grid change
-    const framesX = parseInt(editorFramesX.value, 10) || 1;
-    const framesY = parseInt(editorFramesY.value, 10) || 1;
-    selectedFrames = [];
-    drawEditorCanvas();
-});
+if (editorFramesX) editorFramesX.addEventListener('input', () => { selectedFrames = []; drawEditorCanvas(); });
+if (editorFramesY) editorFramesY.addEventListener('input', () => { selectedFrames = []; drawEditorCanvas(); });
 
 function drawEditorCanvas() {
     if (!editorImage) return;
-    // ensure DPR transform
     const ctx = ensureCanvasDPR(spriteEditorCanvas);
-
-    // ensure no smoothing for editor rendering
     try {
         ctx.imageSmoothingEnabled = false;
         if (typeof ctx.imageSmoothingQuality !== 'undefined') ctx.imageSmoothingQuality = 'low';
     } catch (e) {}
-
     ctx.clearRect(0, 0, spriteEditorCanvas.clientWidth, spriteEditorCanvas.clientHeight);
-    // Fit image to canvas using CSS pixel sizes
     const scale = Math.min(spriteEditorCanvas.clientWidth / editorImage.width, spriteEditorCanvas.clientHeight / editorImage.height, 1);
     const offsetX = (spriteEditorCanvas.clientWidth - editorImage.width * scale) / 2;
     const offsetY = (spriteEditorCanvas.clientHeight - editorImage.height * scale) / 2;
     ctx.drawImage(editorImage, offsetX, offsetY, editorImage.width * scale, editorImage.height * scale);
 
-    // Draw crop rectangle
     ctx.save();
     ctx.strokeStyle = '#b280ff';
     ctx.lineWidth = 2;
@@ -499,7 +454,6 @@ function drawEditorCanvas() {
     const cellW = crop.w / framesX;
     const cellH = crop.h / framesY;
 
-    // Draw grid and selection using CSS-scaled coordinates
     for (let row = 0; row < framesY; row++) {
         for (let col = 0; col < framesX; col++) {
             const idx = row * framesX + col;
@@ -535,10 +489,10 @@ function drawEditorCanvas() {
             }
         }
     }
-    editorFramesLabel.textContent = `Selected Frames: ${selectedFrames.length}`;
+    if (editorFramesLabel) editorFramesLabel.textContent = `Selected Frames: ${selectedFrames.length}`;
 }
 
-// Update event handlers that computed scale using element.width/height to use client sizes
+// Canvas mouse handlers
 spriteEditorCanvas.addEventListener('mousedown', (e) => {
     if (!editorImage) return;
     isDragging = true;
@@ -571,8 +525,7 @@ spriteEditorCanvas.addEventListener('mousedown', (e) => {
     drawEditorCanvas();
 });
 spriteEditorCanvas.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    if (!editorImage) return;
+    if (!isDragging || !editorImage) return;
     const rect = spriteEditorCanvas.getBoundingClientRect();
     const x = (e.clientX - rect.left);
     const y = (e.clientY - rect.top);
@@ -592,80 +545,131 @@ spriteEditorCanvas.addEventListener('mousemove', (e) => {
     updateSelectionGrid(dragStartCol, dragStartRow, col, row, dragSelectMode);
     drawEditorCanvas();
 });
-
-// Prevent default context menu on the editor canvas (we use right-click for deselect)
-spriteEditorCanvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-});
-
-// Finalize drag selection on mouseup / leave
-window.addEventListener('mouseup', (e) => {
+spriteEditorCanvas.addEventListener('contextmenu', (e) => { e.preventDefault(); });
+window.addEventListener('mouseup', () => {
     if (isDragging) {
         isDragging = false;
-        // ensure final draw to show completed selection
         drawEditorCanvas();
     }
 });
-spriteEditorCanvas.addEventListener('mouseleave', (e) => {
+spriteEditorCanvas.addEventListener('mouseleave', () => {
     if (isDragging) {
         isDragging = false;
         drawEditorCanvas();
     }
 });
 
-// When opening the editor ensure DPR sizing before drawing
 function openSpriteEditor(idx) {
     editingSpriteIdx = idx;
     editorImage = new window.Image();
     editorImage.crossOrigin = 'anonymous';
     editorImage.src = uploadedSprites[idx].url;
     editorImage.onload = () => {
-        crop = uploadedSprites[idx].crop
-            ? { ...uploadedSprites[idx].crop }
-            : { x: 0, y: 0, w: editorImage.width, h: editorImage.height };
+        crop = uploadedSprites[idx].crop ? { ...uploadedSprites[idx].crop } : { x: 0, y: 0, w: editorImage.width, h: editorImage.height };
         editorFramesX.value = uploadedSprites[idx].framesX || uploadedSprites[idx].frames || 6;
         editorFramesY.value = uploadedSprites[idx].framesY || 1;
         editorDirection.value = uploadedSprites[idx].direction || 'horizontal';
         if (Array.isArray(uploadedSprites[idx].selectedFrames)) {
             selectedFrames = [...uploadedSprites[idx].selectedFrames];
         } else {
-            selectedFrames = []; // start with none selected
+            selectedFrames = [];
         }
 
-        // Show modal first so the canvas has layout (clientWidth/clientHeight)
         spriteEditorModal.classList.add('active');
-
-        // --- Ensure the editor canvas is visually larger before DPR sizing/drawing ---
-        // This ensures clientWidth/clientHeight are already large so ensureCanvasDPR uses the intended size.
         spriteEditorCanvas.style.width = '900px';
         spriteEditorCanvas.style.height = '480px';
 
-        // On next frame, ensure DPR/backing store is correct and draw.
-        // This guarantees the canvas has non-zero clientWidth/clientHeight.
         requestAnimationFrame(() => {
             ensureCanvasDPR(spriteEditorCanvas);
             drawEditorCanvas();
         });
     };
+    editorImage.onerror = () => {
+        alert('Failed to load sprite image for editing.');
+    };
 }
 
-// Also ensure DPR when the window resizes so the editor stays sharp
 window.addEventListener('resize', () => {
-    // If editor is open, re-ensure DPR and redraw
-    if (spriteEditorModal.classList.contains('active')) {
+    if (spriteEditorModal && spriteEditorModal.classList && spriteEditorModal.classList.contains('active')) {
         ensureCanvasDPR(spriteEditorCanvas);
         drawEditorCanvas();
     }
-    // re-render gallery so previews stay crisp on DPR changes / resize
     renderSpriteGallery();
 });
 
-// --- Sprite Packs logic ---
+function clampSelectedFramesForGrid(sel, framesX, framesY) {
+    const max = Math.max(0, framesX * framesY);
+    return Array.from(new Set((sel || []).map(n => parseInt(n, 10)).filter(n => Number.isFinite(n) && n >= 0 && n < max))).sort((a,b)=>a-b);
+}
 
+if (saveSpriteEdit) {
+    saveSpriteEdit.addEventListener('click', () => {
+        if (editingSpriteIdx == null) return;
+        const framesX = Math.max(1, parseInt(editorFramesX.value, 10) || 1);
+        const framesY = Math.max(1, parseInt(editorFramesY.value, 10) || 1);
+        const direction = editorDirection.value || 'horizontal';
+        const validSelected = clampSelectedFramesForGrid(selectedFrames, framesX, framesY);
+        const spriteEntry = uploadedSprites[editingSpriteIdx] || {};
+        spriteEntry.framesX = framesX;
+        spriteEntry.framesY = framesY;
+        spriteEntry.direction = direction;
+        spriteEntry.crop = { ...crop };
+        if (spriteEntry.frameSpeed == null) spriteEntry.frameSpeed = defaultFrameSpeed;
+        spriteEntry.selectedFrames = validSelected.length ? validSelected : [];
+        spriteEntry.frames = validSelected.length ? validSelected.length : (framesX * framesY);
+        uploadedSprites[editingSpriteIdx] = spriteEntry;
+        saveSpritesConfig();
+        renderSpriteGallery();
+        spriteEditorModal.classList.remove('active');
+        editingSpriteIdx = null;
+        editorImage = null;
+        selectedFrames = [];
+    });
+}
+
+// Delete All Sprites handler
+const deleteAllSpritesBtn = document.getElementById('deleteAllSprites');
+if (deleteAllSpritesBtn) {
+    deleteAllSpritesBtn.addEventListener('click', async () => {
+        if (!confirm('Delete ALL uploaded sprites and installed pack sprites from the sprites list? (This will remove uploaded files in public/sprites and remove any pack-installed entries from your sprites list)')) return;
+        deleteAllSpritesBtn.disabled = true;
+        const prevText = deleteAllSpritesBtn.textContent;
+        deleteAllSpritesBtn.textContent = 'Deleting...';
+        try {
+            const r = await fetch('/delete-all-sprites', { method: 'POST' });
+            const data = await r.json();
+            if (r.ok && data && data.success) {
+                uploadedSprites = uploadedSprites.filter(s => {
+                    if (!s || !s.url) return true;
+                    const u = String(s.url);
+                    return !(u.includes('/sprites/') || u.includes('/packs/'));
+                });
+                renderSpriteGallery();
+                saveSpritesConfig();
+                deleteAllSpritesBtn.textContent = 'Deleted';
+                setTimeout(() => {
+                    deleteAllSpritesBtn.disabled = false;
+                    deleteAllSpritesBtn.textContent = prevText;
+                }, 900);
+            } else {
+                console.error('Server failed to delete sprites', data);
+                alert('Failed to delete sprites on server.');
+                deleteAllSpritesBtn.disabled = false;
+                deleteAllSpritesBtn.textContent = prevText;
+            }
+        } catch (e) {
+            console.error('Error deleting sprites', e);
+            alert('Error deleting sprites (see console).');
+            deleteAllSpritesBtn.disabled = false;
+            deleteAllSpritesBtn.textContent = prevText;
+        }
+    });
+}
+
+// Sprite Packs logic (unchanged flow)
 const spritePacksContainer = document.getElementById('spritePacks');
 const refreshPacksBtn = document.getElementById('refreshPacksBtn');
 
-// Load and render available packs
 async function loadSpritePacks() {
     try {
         const res = await fetch('/sprite-packs');
@@ -673,11 +677,12 @@ async function loadSpritePacks() {
         renderSpritePacks(packs || []);
     } catch (e) {
         console.error('Failed to load packs', e);
-        spritePacksContainer.innerHTML = '<div style="color:#f88">Failed to load packs</div>';
+        if (spritePacksContainer) spritePacksContainer.innerHTML = '<div style="color:#f88">Failed to load packs</div>';
     }
 }
 
 function renderSpritePacks(packs) {
+    if (!spritePacksContainer) return;
     spritePacksContainer.innerHTML = '';
     if (!packs.length) {
         spritePacksContainer.innerHTML = '<div style="color:#ccc">No packs available on the server.</div>';
@@ -726,12 +731,11 @@ function renderSpritePacks(packs) {
                 });
                 const data = await r.json();
                 if (data && data.success) {
-                    // Refresh config and gallery
                     const cfgRes = await fetch('/config');
                     const cfg = await cfgRes.json();
                     uploadedSprites = Array.isArray(cfg.sprites) ? cfg.sprites : [];
                     renderSpriteGallery();
-                    saveSpritesConfig(); // persist UI changes to server-side config
+                    saveSpritesConfig();
                     btn.textContent = 'Installed';
                 } else {
                     console.error('Pack install failed', data);
@@ -745,7 +749,6 @@ function renderSpritePacks(packs) {
             }
         });
         card.appendChild(btn);
-
         spritePacksContainer.appendChild(card);
     });
 }
@@ -753,155 +756,40 @@ function renderSpritePacks(packs) {
 if (refreshPacksBtn) {
     refreshPacksBtn.addEventListener('click', () => loadSpritePacks());
 }
-
-// Load packs initially
 loadSpritePacks();
 
-// --- NEW: Search / Filter functionality ---
-function debounce(fn, wait = 150) {
-    let t;
-    return (...args) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...args), wait);
-    };
-}
-
+// Search / Filter hook
 function textMatches(el, q) {
     if (!el || !q) return false;
     return (el.textContent || '').toLowerCase().indexOf(q) !== -1;
 }
-
 function performSearch(rawQuery) {
     const q = (rawQuery || '').trim().toLowerCase();
-    // Categories: show if any label/heading/desc inside matches
     document.querySelectorAll('.category').forEach(cat => {
-        if (!q) {
-            cat.style.display = '';
-            return;
-        }
+        if (!q) { cat.style.display = ''; return; }
         const nodesToCheck = Array.from(cat.querySelectorAll('h2, .label, .setting-desc, .info-icon, .input, select, option'));
         const matches = nodesToCheck.some(n => textMatches(n, q));
         cat.style.display = matches ? '' : 'none';
     });
-
-    // Sprite gallery: filter wrappers
     document.querySelectorAll('#spriteGallery .sprite-wrapper').forEach(w => {
-        if (!q) {
-            w.style.display = '';
-            return;
-        }
+        if (!q) { w.style.display = ''; return; }
         const match = textMatches(w, q) || (w.querySelector('.sprite-frame-label') && textMatches(w.querySelector('.sprite-frame-label'), q));
         w.style.display = match ? '' : 'none';
     });
-
-    // Sprite packs: filter pack cards
     document.querySelectorAll('#spritePacks .sprite-wrapper').forEach(card => {
-        if (!q) {
-            card.style.display = '';
-            return;
-        }
+        if (!q) { card.style.display = ''; return; }
         const match = textMatches(card, q) || textMatches(card.querySelector('div'), q);
         card.style.display = match ? '' : 'none';
     });
 }
 
-// Hook search input with debounce
 if (settingsSearch) {
     const debounced = debounce((e) => performSearch(e.target.value), 120);
     settingsSearch.addEventListener('input', debounced);
-    // support pressing Esc to clear
     settingsSearch.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             settingsSearch.value = '';
             performSearch('');
-        }
-    });
-}
-
-// --- Additions end ---
-
-// --- Ensure save button commits editor state back to uploadedSprites ---
-function clampSelectedFramesForGrid(sel, framesX, framesY) {
-    const max = Math.max(0, framesX * framesY);
-    return Array.from(new Set((sel || []).map(n => parseInt(n, 10)).filter(n => Number.isFinite(n) && n >= 0 && n < max))).sort((a,b)=>a-b);
-}
-
-if (saveSpriteEdit) {
-    saveSpriteEdit.addEventListener('click', () => {
-        if (editingSpriteIdx == null) return;
-        const framesX = Math.max(1, parseInt(editorFramesX.value, 10) || 1);
-        const framesY = Math.max(1, parseInt(editorFramesY.value, 10) || 1);
-        const direction = editorDirection.value || 'horizontal';
-
-        // Clamp/filter selectedFrames to valid range
-        const validSelected = clampSelectedFramesForGrid(selectedFrames, framesX, framesY);
-
-        // Prepare values to save
-        const spriteEntry = uploadedSprites[editingSpriteIdx] || {};
-        spriteEntry.framesX = framesX;
-        spriteEntry.framesY = framesY;
-        spriteEntry.direction = direction;
-        spriteEntry.crop = { ...crop };
-        // Preserve frameSpeed if present
-        if (spriteEntry.frameSpeed == null) spriteEntry.frameSpeed = defaultFrameSpeed;
-        // Save selectedFrames (or undefined if empty)
-        spriteEntry.selectedFrames = validSelected.length ? validSelected : [];
-
-        // If selected frames exist, set frames to the selected count, otherwise set to full grid count
-        spriteEntry.frames = validSelected.length ? validSelected.length : (framesX * framesY);
-
-        // write back
-        uploadedSprites[editingSpriteIdx] = spriteEntry;
-
-        // persist and refresh
-        saveSpritesConfig();
-        renderSpriteGallery();
-
-        // close the editor modal and reset local editor state
-        spriteEditorModal.classList.remove('active');
-        editingSpriteIdx = null;
-        editorImage = null;
-        selectedFrames = [];
-    });
-}
-
-// --- Delete All Sprites handler ---
-const deleteAllSpritesBtn = document.getElementById('deleteAllSprites');
-if (deleteAllSpritesBtn) {
-    deleteAllSpritesBtn.addEventListener('click', async () => {
-        if (!confirm('Delete ALL uploaded sprites and installed pack sprites from the sprites list? (This will remove uploaded files in public/sprites and remove any pack-installed entries from your sprites list)')) return;
-        deleteAllSpritesBtn.disabled = true;
-        const prevText = deleteAllSpritesBtn.textContent;
-        deleteAllSpritesBtn.textContent = 'Deleting...';
-        try {
-            const r = await fetch('/delete-all-sprites', { method: 'POST' });
-            const data = await r.json();
-            if (r.ok && data && data.success) {
-                // Remove sprites referencing /sprites/ OR /packs/ from UI state
-                uploadedSprites = uploadedSprites.filter(s => {
-                    if (!s || !s.url) return true;
-                    const u = String(s.url);
-                    return !(u.includes('/sprites/') || u.includes('/packs/'));
-                });
-                renderSpriteGallery();
-                // Persist updated config back to server (server already updated, but keep UI in sync)
-                saveSpritesConfig();
-                deleteAllSpritesBtn.textContent = 'Deleted';
-                setTimeout(() => {
-                    deleteAllSpritesBtn.disabled = false;
-                    deleteAllSpritesBtn.textContent = prevText;
-                }, 900);
-            } else {
-                console.error('Server failed to delete sprites', data);
-                alert('Failed to delete sprites on server.');
-                deleteAllSpritesBtn.disabled = false;
-                deleteAllSpritesBtn.textContent = prevText;
-            }
-        } catch (e) {
-            console.error('Error deleting sprites', e);
-            alert('Error deleting sprites (see console).');
-            deleteAllSpritesBtn.disabled = false;
-            deleteAllSpritesBtn.textContent = prevText;
         }
     });
 }

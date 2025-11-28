@@ -332,18 +332,24 @@ class Avatar {
         const offsetX = this.x + (targetW - drawW) / 2;
         const offsetY = this.y + (targetH - drawH) / 2;
 
-        if (this.dx < 0) {
+        // Determine flips: sprite config flip + facing direction
+        const spriteFlipH = !!spriteConfig.flipH;
+        const spriteFlipV = !!spriteConfig.flipV;
+        const faceLeft = this.dx < 0;
+        // final horizontal flip: XOR sprite flip with facing direction so both true cancels
+        const doFlipX = spriteFlipH !== faceLeft;
+        const doFlipY = spriteFlipV;
+
+        if (doFlipX || doFlipY) {
             ctx.save();
-            // maintain no-smoothing for flipped draw
-            try {
-                ctx.imageSmoothingEnabled = false;
-                if (typeof ctx.imageSmoothingQuality !== 'undefined') ctx.imageSmoothingQuality = 'low';
-            } catch (e) {}
-            ctx.scale(-1, 1);
+            // translate to target origin, if flipped translate to opposite corner
+            ctx.translate(offsetX + (doFlipX ? drawW : 0), offsetY + (doFlipY ? drawH : 0));
+            ctx.scale(doFlipX ? -1 : 1, doFlipY ? -1 : 1);
+            // draw cropped frame at local 0,0
             ctx.drawImage(
                 this.spriteImage,
                 sx, sy, frameWidth, frameHeight,
-                -offsetX - drawW, offsetY, drawW, drawH
+                0, 0, drawW, drawH
             );
             ctx.restore();
         } else {
